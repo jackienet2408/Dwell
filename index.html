@@ -43,6 +43,13 @@
   .app-shell { height: 100dvh; display: flex; overflow: hidden; }
   .app { position: relative; flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
 
+  .stop-sidebar {
+    flex: 0 0 auto; width: 50px; display: flex; align-items: center; justify-content: center;
+    padding: calc(12px + env(safe-area-inset-top)) 6px calc(12px + env(safe-area-inset-bottom));
+    background: rgba(14,14,24,0.6); border-right: 1px solid var(--border); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    position: relative; z-index: 2;
+  }
+
   .master-fader {
     flex: 0 0 auto; width: 50px; display: flex; flex-direction: column; align-items: center;
     gap: 6px; padding: calc(12px + env(safe-area-inset-top)) 6px calc(12px + env(safe-area-inset-bottom));
@@ -81,7 +88,7 @@
   }
   .glow-anchor.show .blob-inner { opacity: 0.26; }
 
-  .topbar { position: relative; display: flex; justify-content: center; padding: calc(12px + env(safe-area-inset-top)) 18px 8px; z-index: 1; flex: 0 0 auto; }
+  .topbar { position: relative; display: flex; justify-content: center; padding: calc(26px + env(safe-area-inset-top)) 18px 8px; z-index: 1; flex: 0 0 auto; }
   .brand-block { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 8px; }
   .brand-logo { width: 24px; height: 24px; border-radius: 7px; display: block; flex: 0 0 auto; }
   .brand-text { display: flex; flex-direction: column; line-height: 1.2; }
@@ -139,12 +146,13 @@
   .reduced-motion .swell-bar { transition: none !important; }
 
   .stop-btn {
-    height: 50px; border-radius: var(--radius-md); border: 1px solid var(--border);
-    background: var(--surface); color: var(--text-muted); font-weight: 700; font-size: 15px;
-    display: flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%; aspect-ratio: 1; border-radius: var(--radius-md); border: 1px solid var(--border);
+    background: var(--surface); color: var(--text-muted); font-weight: 700; font-size: 10px;
+    text-transform: uppercase; letter-spacing: .04em;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
     transition: background .25s var(--ease), border-color .25s var(--ease), color .25s var(--ease), box-shadow .25s var(--ease);
   }
-  .stop-btn:active { transform: scale(0.98); }
+  .stop-btn:active { transform: scale(0.94); }
   .stop-btn.playing { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); box-shadow: 0 0 20px rgba(239,68,68,0.28); }
 
   .studio-tray { position: relative; z-index: 1; flex: 0 0 auto; background: rgba(14,14,24,0.92); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 1px solid var(--border); }
@@ -184,11 +192,53 @@
   .page-dots { display: flex; justify-content: center; gap: 6px; padding: 8px 0 calc(10px + env(safe-area-inset-bottom)); }
   .page-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--surface-strong); border: none; padding: 0; transition: background .2s var(--ease), transform .2s var(--ease); }
   .page-dot.active { background: var(--accent); transform: scale(1.4); }
+
+  .install-card {
+    position: fixed; top: calc(14px + env(safe-area-inset-top)); right: 66px; z-index: 30;
+    width: 200px; background: rgba(20,20,30,0.6); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+    opacity: 0; transform: translateY(-6px); pointer-events: none; transition: opacity .3s var(--ease), transform .3s var(--ease);
+  }
+  .install-card.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+  .install-card-close {
+    all: unset; position: absolute; top: 6px; right: 9px; color: var(--text-muted); font-size: 14px; line-height: 1;
+    cursor: pointer; padding: 4px;
+  }
+  .install-card-text { font-size: 12px; color: var(--text-muted); line-height: 1.4; margin: 0 14px 10px 0; }
+  .install-card-btn { width: 100%; height: 30px; border-radius: 8px; background: var(--accent-soft); border: 1px solid var(--accent); color: var(--accent); font-size: 12px; font-weight: 700; }
+
+  .modal-scrim {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 40; opacity: 0; pointer-events: none; transition: opacity .25s var(--ease);
+  }
+  .modal-scrim.show { opacity: 1; pointer-events: auto; }
+  .install-modal {
+    position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%) scale(0.96);
+    width: min(420px, 86vw); max-height: 80vh; overflow-y: auto;
+    background: rgba(16,16,26,0.98); border: 1px solid var(--border); border-radius: 20px; padding: 20px; z-index: 41;
+    opacity: 0; pointer-events: none; transition: opacity .25s var(--ease), transform .25s var(--ease);
+  }
+  .install-modal.show { opacity: 1; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
+  .install-modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .install-modal-title { font-weight: 700; font-size: 16px; }
+  .install-modal-body { font-size: 13.5px; line-height: 1.6; color: var(--text); }
+  .install-modal-body b { color: var(--accent); }
+  .install-modal-body ol { padding-left: 20px; margin: 8px 0; }
+  .install-modal-body p { margin: 14px 0 0; }
+  .install-modal-body p:first-child { margin-top: 0; }
+  .install-modal-note { font-size: 12px; color: var(--text-muted); margin-bottom: 14px; padding: 10px 12px; background: var(--surface); border-radius: 10px; border: 1px solid var(--border); }
+  .install-modal-remind { width: 100%; margin-top: 18px; height: 46px; border-radius: 12px; background: var(--accent-soft); border: 1px solid var(--accent); color: var(--accent); font-weight: 700; font-size: 14px; }
 </style>
 </head>
 <body>
 <audio id="bgAudio" playsinline style="display:none"></audio>
 <div class="app-shell">
+<aside class="stop-sidebar">
+  <button class="stop-btn" id="stop">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+    Stop
+  </button>
+</aside>
 <div class="app">
   <div class="bg-ambient" aria-hidden="true">
     <div class="blob blob-1"></div><div class="blob blob-2"></div>
@@ -220,11 +270,6 @@
     </div>
 
     <div class="chord-grid" id="chords"></div>
-
-    <button class="stop-btn" id="stop">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
-      Stop
-    </button>
   </main>
 
   <section class="studio-tray" id="studioTray">
@@ -265,6 +310,24 @@
   </div>
   <div class="fader-value" id="faderValue">60%</div>
 </aside>
+</div>
+
+<div class="install-card" id="installCard">
+  <button class="install-card-close" id="installCardClose" aria-label="Dismiss">×</button>
+  <div class="install-card-text">Install Dwell as an app for full offline use</div>
+  <button class="install-card-btn" id="installCardBtn">How to install</button>
+</div>
+
+<div class="modal-scrim" id="installScrim"></div>
+<div class="install-modal" id="installModal" role="dialog" aria-modal="true" aria-label="Install instructions">
+  <div class="install-modal-header">
+    <div class="install-modal-title">Install Dwell</div>
+    <button class="icon-btn" id="installModalClose" aria-label="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+  <div class="install-modal-body" id="installModalBody"></div>
+  <button class="install-modal-remind" id="installRemindBtn">Remind me in 2 weeks</button>
 </div>
 
 <script>
@@ -503,10 +566,10 @@ function stopAllVoices(fadeOutTime = 0.6) {
   currentVoices = [];
 }
 
-function playChord(notes) {
+function playChord(notes, fast) {
   ensureAudio();
   const now = audioCtx.currentTime;
-  const attack = controls.attack.get();
+  const attack = fast ? 0.12 : controls.attack.get();
   const detuneCents = controls.detune.get();
   const ensembleDepth = controls.ensemble.get() / 100;
   const newVoices = [];
@@ -935,10 +998,10 @@ function createKnob(container, cfg) {
 
 createKnob(document.getElementById('tonePage'), { id: 'detune', label: 'Shimmer', min: 0, max: 25, value: 6, format: v => `${Math.round(v)}¢`, onChange: () => {} });
 createKnob(document.getElementById('tonePage'), { id: 'attack', label: 'Swell', min: 0.2, max: 6, value: 1.5, format: v => `${v.toFixed(1)}s`, onChange: () => {} });
-createKnob(document.getElementById('tonePage'), { id: 'width', label: 'Voicing', min: 0, max: 2, step: 1, value: 1, format: v => v < 0.5 ? 'close' : v < 1.5 ? '+1oct' : '+2oct', onChange: () => { if (activeChordIdx !== null) triggerChord(activeChordIdx); } });
+createKnob(document.getElementById('tonePage'), { id: 'width', label: 'Voicing', min: 0, max: 2, step: 1, value: 1, format: v => v < 0.5 ? 'close' : v < 1.5 ? '+1oct' : '+2oct', onChange: () => refreshVoicing() });
 
 createKnob(document.getElementById('movementPage'), { id: 'drone', label: 'Drone', min: 0, max: 100, value: 35, format: v => `${Math.round(v)}%`, onChange: v => { if (audioCtx && droneVoice) droneVoice.gain.gain.setTargetAtTime((v / 100) * 0.5, audioCtx.currentTime, 0.2); } });
-createKnob(document.getElementById('movementPage'), { id: 'ensemble', label: 'Ensemble', min: 0, max: 100, value: 40, format: v => `${Math.round(v)}%`, onChange: () => { if (activeChordIdx !== null) triggerChord(activeChordIdx); } });
+createKnob(document.getElementById('movementPage'), { id: 'ensemble', label: 'Ensemble', min: 0, max: 100, value: 40, format: v => `${Math.round(v)}%`, onChange: () => refreshVoicing() });
 createKnob(document.getElementById('movementPage'), { id: 'tremDepth', label: 'Tremolo', min: 0, max: 100, value: 0, format: v => `${Math.round(v)}%`, onChange: v => applyTremoloDepth(v) });
 createKnob(document.getElementById('movementPage'), { id: 'tremRate', label: 'Trem Rate', min: 10, max: 600, value: 180, format: v => `${(v / 100).toFixed(2)}Hz`, onChange: v => { if (tremoloLfo) tremoloLfo.frequency.setTargetAtTime(v / 100, audioCtx.currentTime, 0.05); } });
 createKnob(document.getElementById('movementPage'), { id: 'breathDepth', label: 'Breathing', min: 0, max: 100, value: 20, format: v => `${Math.round(v)}%`, onChange: v => applyBreathDepth(v) });
@@ -1079,6 +1142,13 @@ function triggerChord(degreeIdx) {
   positionGlow('glowChord', pads[degreeIdx]);
 }
 
+function refreshVoicing() {
+  if (activeChordIdx === null) return;
+  const width = controls.width.get();
+  const { scale } = getActiveScale();
+  playChord(degreeToMidiTriad(rootMidi, activeChordIdx, width, scale), true);
+}
+
 document.getElementById('stop').onclick = () => {
   stopAllVoices();
   stopDrone();
@@ -1211,6 +1281,81 @@ positionGlow('glowKey', glowKeyTarget);
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(() => {}); });
 }
+
+/* ---------- install-as-PWA prompt ---------- */
+
+function isStandalonePWA() {
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+function detectBrowserContext() {
+  const ua = navigator.userAgent;
+  const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isChromeIOS = /CriOS/i.test(ua);
+  const isFirefoxIOS = /FxiOS/i.test(ua);
+  const isSafari = isIOS && !isChromeIOS && !isFirefoxIOS;
+  return { isIOS, isSafari, isChromeIOS, isFirefoxIOS };
+}
+function installModalContent() {
+  const { isIOS, isSafari, isChromeIOS, isFirefoxIOS } = detectBrowserContext();
+  let note = '';
+  if (isIOS && !isSafari) {
+    const browserName = isChromeIOS ? 'Chrome' : isFirefoxIOS ? 'Firefox' : 'this browser';
+    note = `<div class="install-modal-note">You're currently in ${browserName}. On iPhone/iPad, only Safari can add this to your Home Screen — open this page in Safari first, then follow the steps below.</div>`;
+  }
+  return `
+    ${note}
+    <p><b>iPhone / iPad — Safari</b></p>
+    <ol>
+      <li>Tap the <b>Share</b> button (square with an arrow up, in the toolbar).</li>
+      <li>Scroll down and tap <b>Add to Home Screen</b>.</li>
+      <li>Tap <b>Add</b> in the top right.</li>
+    </ol>
+    <p><b>Mac — Safari or Chrome</b></p>
+    <ol>
+      <li>Safari: File menu → <b>Add to Dock</b>.</li>
+      <li>Chrome: click the install icon in the address bar (or menu → <b>Cast, Save, and Share</b> → <b>Install page as app</b>).</li>
+    </ol>
+    <p><b>Android — Chrome</b></p>
+    <ol>
+      <li>Tap the <b>⋮</b> menu.</li>
+      <li>Tap <b>Add to Home screen</b> (or <b>Install app</b>).</li>
+    </ol>
+  `;
+}
+
+const SNOOZE_MS = 14 * 24 * 60 * 60 * 1000;
+function shouldShowInstallCard() {
+  if (isStandalonePWA()) return false;
+  const until = parseInt(localStorage.getItem('dwellInstallSnoozeUntil') || '0', 10);
+  return Date.now() > until;
+}
+
+const installCard = document.getElementById('installCard');
+const installModal = document.getElementById('installModal');
+const installScrim = document.getElementById('installScrim');
+
+function openInstallModal() {
+  document.getElementById('installModalBody').innerHTML = installModalContent();
+  installModal.classList.add('show');
+  installScrim.classList.add('show');
+}
+function closeInstallModal() {
+  installModal.classList.remove('show');
+  installScrim.classList.remove('show');
+}
+function snoozeInstallPrompt() {
+  localStorage.setItem('dwellInstallSnoozeUntil', String(Date.now() + SNOOZE_MS));
+  installCard.classList.remove('show');
+  closeInstallModal();
+}
+
+document.getElementById('installCardBtn').onclick = openInstallModal;
+document.getElementById('installCardClose').onclick = () => installCard.classList.remove('show');
+document.getElementById('installModalClose').onclick = closeInstallModal;
+installScrim.onclick = closeInstallModal;
+document.getElementById('installRemindBtn').onclick = snoozeInstallPrompt;
+
+if (shouldShowInstallCard()) installCard.classList.add('show');
 </script>
 </body>
 </html>
