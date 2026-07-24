@@ -26,15 +26,15 @@ Most "pad" tools are either expensive iOS apps tied to a subscription, or heavyw
 
 1. Open the app URL in Safari on iPad.
 2. Tap the Share button → **Add to Home Screen**.
-3. Launch it like any other app — from then on it works fully offline.
+3. Launch it like any other app — from then on it works fully offline, even in Airplane Mode.
 
 ## Tech
 
-Plain HTML/CSS/JavaScript and the Web Audio API — no build step, no framework, no dependencies. Hosted as static files (e.g. GitHub Pages), which is all a PWA like this needs.
+Plain HTML/CSS/JavaScript and the Web Audio API — no build step, no framework, no dependencies. A service worker (`sw.js`) caches the app shell on first load so it keeps working with no connection, and `manifest.json` makes it installable as a Home Screen app. Hosted as static files (e.g. GitHub Pages), which is all a PWA like this needs.
 
 ## Status
 
-Actively evolving. Currently a single-file prototype (`prototype.html`) while the sound engine and UI are being refined; a full PWA shell (manifest, service worker, icons) is next on the roadmap.
+Actively evolving — the sound engine and UI are still being refined session to session.
 
 ## License
 

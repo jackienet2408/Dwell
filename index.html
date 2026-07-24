@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Dwell — Worship Pad</title>
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./icons/icon-192.png">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+<meta name="theme-color" content="#07070d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Dwell">
 <style>
   :root {
     color-scheme: dark;
@@ -46,11 +53,16 @@
   .fader-track { position: relative; flex: 1 1 auto; width: 8px; border-radius: 4px; background: var(--surface-strong); border: 1px solid var(--border); touch-action: none; overflow: visible; }
   .fader-meter { position: absolute; left: 1px; right: 1px; bottom: 1px; border-radius: 3px; background: linear-gradient(0deg, rgba(249,115,22,0.25) 0%, rgba(249,115,22,0.55) 100%); height: 0%; pointer-events: none; }
   .fader-cap {
-    position: absolute; left: 50%; bottom: 0%; width: 30px; height: 16px; border-radius: 5px;
-    background: #d8d8dc; border: 1px solid rgba(0,0,0,0.35); box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+    position: absolute; left: 50%; bottom: 0%; width: 34px; height: 18px; border-radius: 6px;
+    background: linear-gradient(180deg, #3c3c44 0%, #222228 52%, #1a1a20 100%);
+    border: 1px solid rgba(0,0,0,0.5); border-top-color: rgba(255,255,255,0.12);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08);
     transform: translate(-50%, 50%); touch-action: none;
   }
-  .fader-cap::before { content: ''; position: absolute; left: 5px; right: 5px; top: 50%; height: 1.5px; background: rgba(0,0,0,0.3); transform: translateY(-50%); }
+  .fader-cap::before {
+    content: ''; position: absolute; left: 6px; right: 6px; top: 50%; height: 2px; border-radius: 1px;
+    background: var(--accent); box-shadow: 0 0 5px var(--accent-glow); transform: translateY(-50%);
+  }
   .fader-value { font-size: 11px; font-weight: 700; color: var(--text); }
 
   .bg-ambient { position: fixed; inset: 0; overflow: hidden; z-index: 0; pointer-events: none; }
@@ -701,18 +713,26 @@ function drawSpectrumFrame() {
     col.topY += (yTarget - col.topY) * 0.6;
 
     if (hasSignal && Math.random() < 0.55) {
-      col.particles.push({ y: col.topY, opacity: 0.9, vy: 0.5 });
+      col.particles.push({
+        y: col.topY, drift: 0,
+        vx: (Math.random() - 0.5) * 0.3,
+        vy: 0.12 + Math.random() * 0.18,
+        grav: 1.006 + Math.random() * 0.02,
+        decay: 0.952 + Math.random() * 0.025,
+        opacity: 0.8 + Math.random() * 0.2,
+      });
     }
     col.particles = col.particles.filter(p => {
       p.y += p.vy;
-      p.vy = Math.min(p.vy * 1.06, 6);
-      p.opacity *= 0.965;
+      p.vy = Math.min(p.vy * p.grav, 2.6);
+      p.drift += p.vx;
+      p.opacity *= p.decay;
       return p.y < h + squareSize && p.opacity > 0.04;
     });
 
     col.particles.forEach(p => {
       rtaCtx2d.fillStyle = `rgba(249,115,22,${p.opacity.toFixed(3)})`;
-      drawRoundedSquare(rtaCtx2d, x, p.y, squareSize, radius);
+      drawRoundedSquare(rtaCtx2d, x + p.drift, p.y, squareSize, radius);
     });
     if (hasSignal) {
       rtaCtx2d.fillStyle = 'rgba(249,115,22,1)';
@@ -1151,6 +1171,10 @@ renderPresets();
 renderPageDots();
 updateNowPlaying();
 positionGlow('glowKey', glowKeyTarget);
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(() => {}); });
+}
 </script>
 </body>
 </html>
