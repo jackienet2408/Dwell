@@ -43,13 +43,6 @@
   .app-shell { height: 100dvh; display: flex; overflow: hidden; }
   .app { position: relative; flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
 
-  .stop-sidebar {
-    flex: 0 0 auto; width: 50px; display: flex; align-items: center; justify-content: center;
-    padding: calc(12px + env(safe-area-inset-top)) 6px calc(12px + env(safe-area-inset-bottom));
-    background: rgba(14,14,24,0.6); border-right: 1px solid var(--border); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-    position: relative; z-index: 2;
-  }
-
   .master-fader {
     flex: 0 0 auto; width: 50px; display: flex; flex-direction: column; align-items: center;
     gap: 6px; padding: calc(12px + env(safe-area-inset-top)) 6px calc(12px + env(safe-area-inset-bottom));
@@ -68,8 +61,14 @@
   }
   .fader-cap::before {
     content: ''; position: absolute; left: 6px; right: 6px; top: 50%; height: 2px; border-radius: 1px;
-    background: var(--accent); box-shadow: 0 0 5px var(--accent-glow); transform: translateY(-50%);
+    background: var(--accent); box-shadow: 0 0 6px 1px var(--accent-glow); transform: translateY(-50%);
+    animation: faderGlowPulse 2.4s ease-in-out infinite;
   }
+  @keyframes faderGlowPulse {
+    0%, 100% { box-shadow: 0 0 5px 0px var(--accent-glow); }
+    50% { box-shadow: 0 0 10px 2px var(--accent-glow); }
+  }
+  .reduced-motion .fader-cap::before { animation: none; }
   .fader-value { font-size: 11px; font-weight: 700; color: var(--text); }
 
   .bg-ambient { position: fixed; inset: 0; overflow: hidden; z-index: 0; pointer-events: none; }
@@ -146,10 +145,9 @@
   .reduced-motion .swell-bar { transition: none !important; }
 
   .stop-btn {
-    width: 100%; aspect-ratio: 1; border-radius: var(--radius-md); border: 1px solid var(--border);
-    background: var(--surface); color: var(--text-muted); font-weight: 700; font-size: 10px;
-    text-transform: uppercase; letter-spacing: .04em;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    width: 100%; aspect-ratio: 1; border-radius: var(--radius-sm); border: 1px solid var(--border);
+    background: var(--surface); color: var(--text-muted); flex: 0 0 auto;
+    display: flex; align-items: center; justify-content: center;
     transition: background .25s var(--ease), border-color .25s var(--ease), color .25s var(--ease), box-shadow .25s var(--ease);
   }
   .stop-btn:active { transform: scale(0.94); }
@@ -233,12 +231,6 @@
 <body>
 <audio id="bgAudio" playsinline style="display:none"></audio>
 <div class="app-shell">
-<aside class="stop-sidebar">
-  <button class="stop-btn" id="stop">
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
-    Stop
-  </button>
-</aside>
 <div class="app">
   <div class="bg-ambient" aria-hidden="true">
     <div class="blob blob-1"></div><div class="blob blob-2"></div>
@@ -309,6 +301,9 @@
     <div class="fader-cap" id="faderCap"></div>
   </div>
   <div class="fader-value" id="faderValue">60%</div>
+  <button class="stop-btn" id="stop" aria-label="Stop">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+  </button>
 </aside>
 </div>
 
