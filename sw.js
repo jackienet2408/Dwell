@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dwell-cache-v1';
+const CACHE_NAME = 'dwell-cache-v2';
 const ASSETS = [
   './',
   './index.html',
@@ -22,8 +22,29 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+function isAppShellRequest(request) {
+  return request.mode === 'navigate' || request.url.endsWith('/manifest.json');
+}
+
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+
+  if (isAppShellRequest(event.request)) {
+    // network-first: always try to get the latest app shell so updates show up
+    // on the very next launch; fall back to cache only when offline
+    event.respondWith(
+      fetch(event.request)
+        .then((res) => {
+          const clone = res.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          return res;
+        })
+        .catch(() => caches.match(event.request).then((cached) => cached || caches.match('./index.html')))
+    );
+    return;
+  }
+
+  // static assets (icons): cache-first is fine, they rarely change
   event.respondWith(
     caches.match(event.request).then((cached) => {
       const fetchPromise = fetch(event.request)
