@@ -171,8 +171,24 @@
 
   .rta-block { position: relative; touch-action: none; }
   #rtaCanvas { width: 100%; height: 110px; display: block; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); }
-  .rta-handle { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--accent); box-shadow: 0 0 8px var(--accent-glow); pointer-events: none; }
-  .rta-handle::after { content: ''; position: absolute; top: -5px; left: 50%; transform: translateX(-50%); width: 14px; height: 14px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 8px var(--accent-glow); }
+  .rta-handle {
+    position: absolute; top: 0; bottom: 0; width: 2px; pointer-events: none;
+    background: linear-gradient(180deg, #fff2d6 0%, var(--accent) 18%, rgba(249,115,22,0.15) 100%);
+    box-shadow: 0 0 10px var(--accent-glow);
+  }
+  .rta-handle::before {
+    content: ''; position: absolute; top: -12px; left: 50%; width: 28px; height: 28px; margin-left: -14px;
+    border-radius: 50%; background: radial-gradient(circle, var(--accent-glow) 0%, transparent 72%);
+    animation: cutoffPulse 2.6s ease-in-out infinite;
+  }
+  .rta-handle::after {
+    content: ''; position: absolute; top: -7px; left: 50%; transform: translateX(-50%); width: 16px; height: 16px; border-radius: 50%;
+    background: radial-gradient(circle at 34% 30%, #fff6e8 0%, #ffb15e 32%, var(--accent) 72%, #b8540f 100%);
+    box-shadow: 0 0 10px 2px var(--accent-glow), 0 2px 4px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.6);
+  }
+  @keyframes cutoffPulse { 0%, 100% { transform: scale(0.85); opacity: 0.55; } 50% { transform: scale(1.2); opacity: 0.95; } }
+  .reduced-motion .rta-handle::before { animation: none; }
+  .rta-band { position: absolute; top: 0; bottom: 0; background: linear-gradient(180deg, rgba(249,115,22,0.07), rgba(249,115,22,0.02)); border-left: 1px dashed rgba(249,115,22,0.18); border-right: 1px dashed rgba(249,115,22,0.18); pointer-events: none; }
   .rta-label { position: absolute; top: 8px; left: 10px; font-size: 11px; font-weight: 600; color: var(--text-muted); background: rgba(0,0,0,0.35); padding: 2px 8px; border-radius: 6px; pointer-events: none; }
   .rta-label span { color: var(--accent); }
 
@@ -180,8 +196,17 @@
   .knob-row-6 { grid-template-columns: repeat(3, 1fr); }
   .knob-row-3 { grid-template-columns: repeat(3, 1fr); }
   .knob-cell { display: flex; flex-direction: column; align-items: center; gap: 3px; }
-  .knob { width: 68px; height: 68px; touch-action: none; }
-  .knob-svg { width: 100%; height: 100%; }
+  .knob { position: relative; width: 68px; height: 68px; touch-action: none; }
+  .knob::before {
+    content: ''; position: absolute; inset: -13px; border-radius: 50%; z-index: -1;
+    background: radial-gradient(circle, var(--accent-glow) 0%, transparent 72%);
+    opacity: calc(var(--val, 0) * 0.85); filter: blur(1px);
+    transition: opacity .15s var(--ease);
+  }
+  .knob-svg { width: 100%; height: 100%; position: relative; z-index: 1; }
+  .knob.bump { animation: knobBump .24s var(--ease); }
+  @keyframes knobBump { 0% { transform: scale(1); } 40% { transform: scale(1.09); } 100% { transform: scale(1); } }
+  .reduced-motion .knob.bump { animation: none; }
   .knob-label { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); text-align: center; }
   .knob-value { font-size: 12px; font-weight: 700; color: var(--text); }
 
@@ -230,6 +255,27 @@
 </head>
 <body>
 <audio id="bgAudio" playsinline style="display:none"></audio>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="knobFillGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#c2551a"/>
+      <stop offset="55%" stop-color="#f97316"/>
+      <stop offset="100%" stop-color="#ffd27a"/>
+    </linearGradient>
+    <radialGradient id="knobTipGrad" cx="35%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#fff6e8"/>
+      <stop offset="45%" stop-color="#ffb15e"/>
+      <stop offset="100%" stop-color="#b8540f"/>
+    </radialGradient>
+    <filter id="softGlow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="1.4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+</svg>
 <div class="app-shell">
 <div class="app">
   <div class="bg-ambient" aria-hidden="true">
@@ -276,6 +322,7 @@
         <div class="page" data-page="0">
           <div class="rta-block">
             <canvas id="rtaCanvas"></canvas>
+            <div class="rta-band" id="rtaBand"></div>
             <div class="rta-handle" id="rtaHandle"></div>
             <div class="rta-label">Warmth <span id="cutoffLabel">1200 Hz</span></div>
           </div>
@@ -708,6 +755,7 @@ const rtaCanvas = document.getElementById('rtaCanvas');
 const rtaCtx2d = rtaCanvas.getContext('2d');
 const rtaBlock = document.querySelector('.rta-block');
 const rtaHandle = document.getElementById('rtaHandle');
+const rtaBand = document.getElementById('rtaBand');
 const cutoffLabel = document.getElementById('cutoffLabel');
 let cutoffValue = 1200;
 
@@ -717,6 +765,11 @@ function freqFromXFrac(xFrac) {
 }
 function xFracFromFreq(freq) {
   return (Math.log(freq) - Math.log(RTA_MIN_F)) / (Math.log(RTA_MAX_F) - Math.log(RTA_MIN_F));
+}
+function positionRtaBand() {
+  const left = xFracFromFreq(200) * 100, right = xFracFromFreq(4000) * 100;
+  rtaBand.style.left = `${left}%`;
+  rtaBand.style.width = `${right - left}%`;
 }
 function setCutoff(v) {
   cutoffValue = clamp(v, 200, 4000);
@@ -856,6 +909,7 @@ function endRtaDrag(e) {
 rtaBlock.addEventListener('pointerup', endRtaDrag);
 rtaBlock.addEventListener('pointercancel', endRtaDrag);
 setCutoff(1200);
+positionRtaBand();
 
 /* ---------- master fader ---------- */
 
@@ -914,18 +968,39 @@ function buildKnobSVG() {
   track.setAttribute('stroke-dasharray', `${arcLen} ${circumference}`);
   track.setAttribute('transform', 'rotate(135 50 50)');
 
+  const ticks = document.createElementNS(svgNS, 'g');
+  [0, 0.25, 0.5, 0.75, 1].forEach(t => {
+    const tick = document.createElementNS(svgNS, 'line');
+    tick.setAttribute('x1', 50); tick.setAttribute('y1', 3); tick.setAttribute('x2', 50); tick.setAttribute('y2', 8);
+    tick.setAttribute('stroke', 'rgba(255,255,255,0.22)'); tick.setAttribute('stroke-width', '1.6'); tick.setAttribute('stroke-linecap', 'round');
+    tick.setAttribute('transform', `rotate(${225 + 270 * t} 50 50)`);
+    ticks.appendChild(tick);
+  });
+
+  const fillGlow = document.createElementNS(svgNS, 'circle');
+  fillGlow.setAttribute('cx', 50); fillGlow.setAttribute('cy', 50); fillGlow.setAttribute('r', r);
+  fillGlow.setAttribute('fill', 'none'); fillGlow.setAttribute('stroke', 'var(--accent)'); fillGlow.setAttribute('stroke-width', '10');
+  fillGlow.setAttribute('stroke-linecap', 'round'); fillGlow.setAttribute('opacity', '0.35');
+  fillGlow.setAttribute('filter', 'url(#softGlow)');
+  fillGlow.setAttribute('transform', 'rotate(135 50 50)');
+
   const fill = document.createElementNS(svgNS, 'circle');
   fill.setAttribute('cx', 50); fill.setAttribute('cy', 50); fill.setAttribute('r', r);
-  fill.setAttribute('fill', 'none'); fill.setAttribute('stroke', 'var(--accent)'); fill.setAttribute('stroke-width', '8');
+  fill.setAttribute('fill', 'none'); fill.setAttribute('stroke', 'url(#knobFillGrad)'); fill.setAttribute('stroke-width', '8');
   fill.setAttribute('stroke-linecap', 'round');
   fill.setAttribute('transform', 'rotate(135 50 50)');
 
+  const pointerGroup = document.createElementNS(svgNS, 'g');
   const pointer = document.createElementNS(svgNS, 'line');
-  pointer.setAttribute('x1', 50); pointer.setAttribute('y1', 50); pointer.setAttribute('x2', 50); pointer.setAttribute('y2', 16);
-  pointer.setAttribute('stroke', '#fff'); pointer.setAttribute('stroke-width', '3'); pointer.setAttribute('stroke-linecap', 'round');
+  pointer.setAttribute('x1', 50); pointer.setAttribute('y1', 50); pointer.setAttribute('x2', 50); pointer.setAttribute('y2', 18);
+  pointer.setAttribute('stroke', 'rgba(255,255,255,0.85)'); pointer.setAttribute('stroke-width', '2.5'); pointer.setAttribute('stroke-linecap', 'round');
+  const tip = document.createElementNS(svgNS, 'circle');
+  tip.setAttribute('cx', 50); tip.setAttribute('cy', 15); tip.setAttribute('r', 3.4);
+  tip.setAttribute('fill', 'url(#knobTipGrad)'); tip.setAttribute('filter', 'url(#softGlow)');
+  pointerGroup.appendChild(pointer); pointerGroup.appendChild(tip);
 
-  svg.appendChild(track); svg.appendChild(fill); svg.appendChild(pointer);
-  return { svg, fill, pointer, circumference, arcLen };
+  svg.appendChild(track); svg.appendChild(ticks); svg.appendChild(fillGlow); svg.appendChild(fill); svg.appendChild(pointerGroup);
+  return { svg, fill, pointerGroup, circumference, arcLen };
 }
 
 function createKnob(container, cfg) {
@@ -953,9 +1028,10 @@ function createKnob(container, cfg) {
     const frac = (val - min) / (max - min);
     const dash = parts.arcLen * frac;
     parts.fill.setAttribute('stroke-dasharray', `${dash} ${parts.circumference}`);
-    parts.pointer.setAttribute('transform', `rotate(${225 + 270 * frac} 50 50)`);
+    parts.pointerGroup.setAttribute('transform', `rotate(${225 + 270 * frac} 50 50)`);
     valueEl.textContent = format(val);
     knobEl.setAttribute('aria-valuenow', val);
+    knobEl.style.setProperty('--val', frac.toFixed(3));
   }
 
   function setValue(v) {
@@ -981,6 +1057,9 @@ function createKnob(container, cfg) {
     if (!dragging) return;
     dragging = false;
     if (!applyingPreset) clearActivePreset();
+    knobEl.classList.remove('bump');
+    void knobEl.offsetWidth;
+    knobEl.classList.add('bump');
   }
   knobEl.addEventListener('pointerup', endDrag);
   knobEl.addEventListener('pointercancel', endDrag);
