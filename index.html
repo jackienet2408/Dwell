@@ -222,17 +222,9 @@
   .viz-knobs { display: flex; gap: 6px; }
   .viz-knobs .knob-cell .knob { width: 56px; height: 56px; }
 
-  .tremolo-dot {
-    width: 20px; height: 20px; border-radius: 50%;
-    background: radial-gradient(circle at 35% 30%, #fff6e8 0%, #ffb15e 35%, var(--accent) 75%, #b8540f 100%);
-    box-shadow: 0 0 10px 2px var(--accent-glow);
-    animation: tremoloPulse 1.2s ease-in-out infinite;
-  }
-  @keyframes tremoloPulse {
-    0%, 100% { transform: scale(calc(1 + var(--tremAmp, 0) * 0.35)); opacity: calc(0.55 + var(--tremAmp, 0) * 0.45); }
-    50% { transform: scale(calc(1 - var(--tremAmp, 0) * 0.35)); opacity: calc(0.55 - var(--tremAmp, 0) * 0.35); }
-  }
-  .reduced-motion .tremolo-dot { animation: none; }
+  .tremolo-wave-group { animation: tremWaveFlow linear infinite; }
+  @keyframes tremWaveFlow { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+  .reduced-motion .tremolo-wave-group { animation: none; }
 
   .breathpan-dot-wrap { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; animation: panDrift 4.2s ease-in-out infinite; }
   @keyframes panDrift {
@@ -243,11 +235,11 @@
     width: 16px; height: 16px; border-radius: 50%;
     background: radial-gradient(circle at 35% 30%, #fff6e8 0%, #ffb15e 35%, var(--accent) 75%, #b8540f 100%);
     box-shadow: 0 0 8px 2px var(--accent-glow);
-    animation: breathPulse 2.4s ease-in-out infinite;
+    animation: breathPulse 2.6s ease-in-out infinite;
   }
   @keyframes breathPulse {
-    0%, 100% { transform: scale(calc(1 + var(--breathAmp, 0) * 0.5)); }
-    50% { transform: scale(calc(1 - var(--breathAmp, 0) * 0.25)); }
+    0%, 100% { filter: blur(calc(var(--breathAmp, 0) * 3px)) brightness(calc(1 - var(--breathAmp, 0) * 0.25)); }
+    50% { filter: blur(0px) brightness(calc(1 + var(--breathAmp, 0) * 0.4)); }
   }
   .reduced-motion .breathpan-dot-wrap, .reduced-motion .breathpan-dot { animation: none; }
 
@@ -388,25 +380,29 @@
             <div class="viz-group">
               <div class="viz-panel" id="panelDroneEnsemble">
                 <svg class="viz-svg" viewBox="0 0 120 56" preserveAspectRatio="none">
-                  <path id="droneWave" d="M0,42 Q30,32 60,42 T120,42" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/>
-                  <g id="ensembleWaveGroup" style="transform-origin: 60px 26px;">
-                    <path class="ensemble-wave" d="M-40,28 Q-10,14 20,28 T80,28 T140,28" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round">
+                  <g id="ensembleWaveGroup" style="transform-origin: 60px 28px;">
+                    <path id="ensembleWave1" d="M-40,28 Q-10,14 20,28 T80,28 T140,28" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round">
                       <animateTransform attributeName="transform" type="translate" from="0,0" to="-60,0" dur="7s" repeatCount="indefinite"/>
                     </path>
-                    <path class="ensemble-wave" d="M-40,24 Q-10,38 20,24 T80,24 T140,24" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round">
+                    <path id="ensembleWave2" d="M-40,28 Q-10,42 20,28 T80,28 T140,28" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round">
                       <animateTransform attributeName="transform" type="translate" from="0,0" to="60,0" dur="9s" repeatCount="indefinite"/>
                     </path>
-                    <path class="ensemble-wave" d="M-40,32 Q-10,20 20,32 T80,32 T140,32" fill="none" stroke="var(--accent)" stroke-width="1.4" stroke-linecap="round">
+                    <path id="ensembleWave3" d="M-40,28 Q-10,16 20,28 T80,28 T140,28" fill="none" stroke="var(--accent)" stroke-width="1.4" stroke-linecap="round">
                       <animateTransform attributeName="transform" type="translate" from="0,0" to="-60,0" dur="11s" repeatCount="indefinite"/>
                     </path>
                   </g>
+                  <path id="droneWave" d="M0,28 Q30,18 60,28 T120,28" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/>
                 </svg>
               </div>
               <div class="viz-knobs" id="groupDroneEnsemble"></div>
             </div>
             <div class="viz-group">
               <div class="viz-panel" id="panelTremolo">
-                <div class="tremolo-dot" id="tremoloDot"></div>
+                <svg class="viz-svg" viewBox="0 0 120 56" preserveAspectRatio="none">
+                  <g class="tremolo-wave-group" id="tremoloWaveGroup">
+                    <path id="tremoloWavePath" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+                  </g>
+                </svg>
               </div>
               <div class="viz-knobs" id="groupTremolo"></div>
             </div>
@@ -1177,19 +1173,36 @@ createKnob(document.getElementById('tonePage'), { id: 'width', label: 'Voicing',
 
 function updateDroneEnsembleViz() {
   const drone = controls.drone.get() / 100, ensemble = controls.ensemble.get() / 100;
+  const droneOpacity = 0.25 + drone * 0.75;
   const droneWave = document.getElementById('droneWave');
-  droneWave.style.opacity = (0.15 + drone * 0.85).toFixed(3);
+  droneWave.style.opacity = droneOpacity.toFixed(3);
   droneWave.setAttribute('stroke-width', (2 + drone * 2.5).toFixed(2));
+
   const grp = document.getElementById('ensembleWaveGroup');
-  grp.style.opacity = (0.12 + ensemble * 0.75).toFixed(3);
-  grp.style.transform = `scaleY(${(0.35 + ensemble * 1.3).toFixed(3)})`;
+  grp.style.transform = `scaleY(${(0.3 + ensemble * 1.2).toFixed(3)})`;
+  // each ensemble line is always dimmer than the current drone line, with its own ceiling for variety
+  [['ensembleWave1', 0.75], ['ensembleWave2', 0.55], ['ensembleWave3', 0.38]].forEach(([id, factor]) => {
+    document.getElementById(id).style.opacity = (droneOpacity * ensemble * factor).toFixed(3);
+  });
 }
 function updateTremoloViz() {
   const depth = controls.tremDepth.get() / 100;
   const rateHz = controls.tremRate.get() / 100;
-  const dot = document.getElementById('tremoloDot');
-  dot.style.setProperty('--tremAmp', depth.toFixed(3));
-  dot.style.animationDuration = `${clamp(1 / Math.max(rateHz, 0.05), 0.12, 4).toFixed(3)}s`;
+
+  // one full "screen width" (120 units) always holds exactly N periods, so
+  // translating the group by -100% (= -120 units) loops seamlessly for any N
+  const periods = clamp(1 + rateHz * 1.3, 1, 10);
+  const period = 120 / periods;
+  const amp = 1.5 + depth * 15;
+  const center = 28;
+  let d = '';
+  for (let x = -60; x <= 300; x += 3) {
+    const y = center + amp * Math.sin((2 * Math.PI * x) / period);
+    d += `${x === -60 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(2)} `;
+  }
+  document.getElementById('tremoloWavePath').setAttribute('d', d);
+  document.getElementById('tremoloWavePath').style.opacity = (0.3 + depth * 0.7).toFixed(3);
+  document.getElementById('tremoloWaveGroup').style.animationDuration = `${clamp(2.6 - rateHz * 0.2, 0.3, 2.6).toFixed(2)}s`;
 }
 function updateBreathPanViz() {
   document.getElementById('breathPanDot').style.setProperty('--breathAmp', (controls.breathDepth.get() / 100).toFixed(3));
