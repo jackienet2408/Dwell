@@ -212,6 +212,61 @@
 
   .hint { font-size: 12px; color: var(--text-muted); line-height: 1.5; margin: 0; }
 
+  .movement-groups { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .viz-group { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+  .viz-panel {
+    width: 100%; height: 58px; border-radius: 10px; background: var(--surface); border: 1px solid var(--border);
+    overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center;
+  }
+  .viz-svg { width: 100%; height: 100%; overflow: visible; }
+  .viz-knobs { display: flex; gap: 6px; }
+  .viz-knobs .knob-cell .knob { width: 56px; height: 56px; }
+
+  .tremolo-dot {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #fff6e8 0%, #ffb15e 35%, var(--accent) 75%, #b8540f 100%);
+    box-shadow: 0 0 10px 2px var(--accent-glow);
+    animation: tremoloPulse 1.2s ease-in-out infinite;
+  }
+  @keyframes tremoloPulse {
+    0%, 100% { transform: scale(calc(1 + var(--tremAmp, 0) * 0.35)); opacity: calc(0.55 + var(--tremAmp, 0) * 0.45); }
+    50% { transform: scale(calc(1 - var(--tremAmp, 0) * 0.35)); opacity: calc(0.55 - var(--tremAmp, 0) * 0.35); }
+  }
+  .reduced-motion .tremolo-dot { animation: none; }
+
+  .breathpan-dot-wrap { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; animation: panDrift 4.2s ease-in-out infinite; }
+  @keyframes panDrift {
+    0%, 100% { transform: translateX(calc(var(--panAmp, 0) * -22px)); }
+    50% { transform: translateX(calc(var(--panAmp, 0) * 22px)); }
+  }
+  .breathpan-dot {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #fff6e8 0%, #ffb15e 35%, var(--accent) 75%, #b8540f 100%);
+    box-shadow: 0 0 8px 2px var(--accent-glow);
+    animation: breathPulse 2.4s ease-in-out infinite;
+  }
+  @keyframes breathPulse {
+    0%, 100% { transform: scale(calc(1 + var(--breathAmp, 0) * 0.5)); }
+    50% { transform: scale(calc(1 - var(--breathAmp, 0) * 0.25)); }
+  }
+  .reduced-motion .breathpan-dot-wrap, .reduced-motion .breathpan-dot { animation: none; }
+
+  .space-viz { position: relative; width: 100%; height: 130px; border-radius: 12px; background: var(--surface); border: 1px solid var(--border); overflow: hidden; margin-bottom: 4px; }
+  .room-glow { position: absolute; inset: 0; background: radial-gradient(circle at 50% 42%, var(--accent-glow), transparent 68%); opacity: 0; transition: opacity .3s var(--ease); }
+  .room-svg { position: absolute; inset: 8%; width: 84%; height: 84%; opacity: 0.05; transition: opacity .3s var(--ease); }
+  .dust-layer { position: absolute; inset: 0; overflow: hidden; }
+  .dust-particle {
+    position: absolute; width: 3px; height: 3px; border-radius: 50%; background: var(--accent);
+    opacity: 0; animation: dustFloat linear infinite;
+  }
+  @keyframes dustFloat {
+    0% { transform: translate(0, 0); opacity: 0; }
+    12% { opacity: var(--dustOpacity, 0.5); }
+    88% { opacity: var(--dustOpacity, 0.5); }
+    100% { transform: translate(var(--driftX, 10px), -120px); opacity: 0; }
+  }
+  .reduced-motion .dust-particle { animation: none; opacity: 0; }
+
   .page-dots { display: flex; justify-content: center; gap: 6px; padding: 8px 0 calc(10px + env(safe-area-inset-bottom)); }
   .page-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--surface-strong); border: none; padding: 0; transition: background .2s var(--ease), transform .2s var(--ease); }
   .page-dot.active { background: var(--accent); transform: scale(1.4); }
@@ -329,11 +384,57 @@
           <div class="knob-row knob-row-3" id="tonePage"></div>
         </div>
         <div class="page" data-page="1">
-          <div class="knob-row knob-row-6" id="movementPage"></div>
+          <div class="movement-groups">
+            <div class="viz-group">
+              <div class="viz-panel" id="panelDroneEnsemble">
+                <svg class="viz-svg" viewBox="0 0 120 56" preserveAspectRatio="none">
+                  <path id="droneWave" d="M0,42 Q30,32 60,42 T120,42" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/>
+                  <g id="ensembleWaveGroup" style="transform-origin: 60px 26px;">
+                    <path class="ensemble-wave" d="M-40,28 Q-10,14 20,28 T80,28 T140,28" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round">
+                      <animateTransform attributeName="transform" type="translate" from="0,0" to="-60,0" dur="7s" repeatCount="indefinite"/>
+                    </path>
+                    <path class="ensemble-wave" d="M-40,24 Q-10,38 20,24 T80,24 T140,24" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round">
+                      <animateTransform attributeName="transform" type="translate" from="0,0" to="60,0" dur="9s" repeatCount="indefinite"/>
+                    </path>
+                    <path class="ensemble-wave" d="M-40,32 Q-10,20 20,32 T80,32 T140,32" fill="none" stroke="var(--accent)" stroke-width="1.4" stroke-linecap="round">
+                      <animateTransform attributeName="transform" type="translate" from="0,0" to="-60,0" dur="11s" repeatCount="indefinite"/>
+                    </path>
+                  </g>
+                </svg>
+              </div>
+              <div class="viz-knobs" id="groupDroneEnsemble"></div>
+            </div>
+            <div class="viz-group">
+              <div class="viz-panel" id="panelTremolo">
+                <div class="tremolo-dot" id="tremoloDot"></div>
+              </div>
+              <div class="viz-knobs" id="groupTremolo"></div>
+            </div>
+            <div class="viz-group">
+              <div class="viz-panel" id="panelBreathPan">
+                <div class="breathpan-dot-wrap" id="breathPanDrift">
+                  <div class="breathpan-dot" id="breathPanDot"></div>
+                </div>
+              </div>
+              <div class="viz-knobs" id="groupBreathPan"></div>
+            </div>
+          </div>
         </div>
         <div class="page" data-page="2">
+          <div class="space-viz" id="spaceViz">
+            <div class="room-glow" id="roomGlow"></div>
+            <svg class="room-svg" id="roomSvg" viewBox="0 0 200 100" preserveAspectRatio="none">
+              <rect x="40" y="20" width="120" height="60" fill="none" stroke="#fff" stroke-width="1"/>
+              <line x1="0" y1="0" x2="40" y2="20" stroke="#fff" stroke-width="1"/>
+              <line x1="200" y1="0" x2="160" y2="20" stroke="#fff" stroke-width="1"/>
+              <line x1="0" y1="100" x2="40" y2="80" stroke="#fff" stroke-width="1"/>
+              <line x1="200" y1="100" x2="160" y2="80" stroke="#fff" stroke-width="1"/>
+              <rect x="1" y="1" width="198" height="98" fill="none" stroke="#fff" stroke-width="1"/>
+            </svg>
+            <div class="dust-layer" id="dustLayer"></div>
+          </div>
           <div class="knob-row knob-row-3" id="spacePage"></div>
-          <p class="hint">Reverb adds depth and space. Air is a very quiet ambient bed. Vinyl adds crackle + surface hiss.</p>
+          <p class="hint">Reverb fades in the room. Air brightens its glow. Vinyl fills the air with dust.</p>
         </div>
       </div>
       <div class="page-dots" id="pageDots"></div>
@@ -1074,16 +1175,69 @@ createKnob(document.getElementById('tonePage'), { id: 'detune', label: 'Shimmer'
 createKnob(document.getElementById('tonePage'), { id: 'attack', label: 'Swell', min: 0.2, max: 6, value: 1.5, format: v => `${v.toFixed(1)}s`, onChange: () => {} });
 createKnob(document.getElementById('tonePage'), { id: 'width', label: 'Voicing', min: 0, max: 2, step: 1, value: 1, format: v => v < 0.5 ? 'close' : v < 1.5 ? '+1oct' : '+2oct', onChange: () => refreshVoicing() });
 
-createKnob(document.getElementById('movementPage'), { id: 'drone', label: 'Drone', min: 0, max: 100, value: 35, format: v => `${Math.round(v)}%`, onChange: v => { if (audioCtx && droneVoice) droneVoice.gain.gain.setTargetAtTime((v / 100) * 0.5, audioCtx.currentTime, 0.2); } });
-createKnob(document.getElementById('movementPage'), { id: 'ensemble', label: 'Ensemble', min: 0, max: 100, value: 40, format: v => `${Math.round(v)}%`, onChange: () => refreshVoicing() });
-createKnob(document.getElementById('movementPage'), { id: 'tremDepth', label: 'Tremolo', min: 0, max: 100, value: 0, format: v => `${Math.round(v)}%`, onChange: v => applyTremoloDepth(v) });
-createKnob(document.getElementById('movementPage'), { id: 'tremRate', label: 'Trem Rate', min: 10, max: 600, value: 180, format: v => `${(v / 100).toFixed(2)}Hz`, onChange: v => { if (tremoloLfo) tremoloLfo.frequency.setTargetAtTime(v / 100, audioCtx.currentTime, 0.05); } });
-createKnob(document.getElementById('movementPage'), { id: 'breathDepth', label: 'Breathing', min: 0, max: 100, value: 20, format: v => `${Math.round(v)}%`, onChange: v => applyBreathDepth(v) });
-createKnob(document.getElementById('movementPage'), { id: 'pan', label: 'Stereo', min: 0, max: 100, value: 25, format: v => `${Math.round(v)}%`, onChange: v => applyPanDepth(v) });
+function updateDroneEnsembleViz() {
+  const drone = controls.drone.get() / 100, ensemble = controls.ensemble.get() / 100;
+  const droneWave = document.getElementById('droneWave');
+  droneWave.style.opacity = (0.15 + drone * 0.85).toFixed(3);
+  droneWave.setAttribute('stroke-width', (2 + drone * 2.5).toFixed(2));
+  const grp = document.getElementById('ensembleWaveGroup');
+  grp.style.opacity = (0.12 + ensemble * 0.75).toFixed(3);
+  grp.style.transform = `scaleY(${(0.35 + ensemble * 1.3).toFixed(3)})`;
+}
+function updateTremoloViz() {
+  const depth = controls.tremDepth.get() / 100;
+  const rateHz = controls.tremRate.get() / 100;
+  const dot = document.getElementById('tremoloDot');
+  dot.style.setProperty('--tremAmp', depth.toFixed(3));
+  dot.style.animationDuration = `${clamp(1 / Math.max(rateHz, 0.05), 0.12, 4).toFixed(3)}s`;
+}
+function updateBreathPanViz() {
+  document.getElementById('breathPanDot').style.setProperty('--breathAmp', (controls.breathDepth.get() / 100).toFixed(3));
+  document.getElementById('breathPanDrift').style.setProperty('--panAmp', (controls.pan.get() / 100).toFixed(3));
+}
 
-createKnob(document.getElementById('spacePage'), { id: 'reverb', label: 'Reverb', min: 0, max: 100, value: 35, format: v => `${Math.round(v)}%`, onChange: v => applyReverbMix(v) });
-createKnob(document.getElementById('spacePage'), { id: 'air', label: 'Air', min: 0, max: 100, value: 15, format: v => `${Math.round(v)}%`, onChange: v => applyAirLevel(v) });
-createKnob(document.getElementById('spacePage'), { id: 'vinyl', label: 'Vinyl', min: 0, max: 100, value: 20, format: v => `${Math.round(v)}%`, onChange: v => applyVinylLevel(v) });
+createKnob(document.getElementById('groupDroneEnsemble'), { id: 'drone', label: 'Drone', min: 0, max: 100, value: 35, format: v => `${Math.round(v)}%`, onChange: v => { if (audioCtx && droneVoice) droneVoice.gain.gain.setTargetAtTime((v / 100) * 0.5, audioCtx.currentTime, 0.2); updateDroneEnsembleViz(); } });
+createKnob(document.getElementById('groupDroneEnsemble'), { id: 'ensemble', label: 'Ensemble', min: 0, max: 100, value: 40, format: v => `${Math.round(v)}%`, onChange: () => { refreshVoicing(); updateDroneEnsembleViz(); } });
+createKnob(document.getElementById('groupTremolo'), { id: 'tremDepth', label: 'Tremolo', min: 0, max: 100, value: 0, format: v => `${Math.round(v)}%`, onChange: v => { applyTremoloDepth(v); updateTremoloViz(); } });
+createKnob(document.getElementById('groupTremolo'), { id: 'tremRate', label: 'Trem Rate', min: 10, max: 600, value: 180, format: v => `${(v / 100).toFixed(2)}Hz`, onChange: v => { if (tremoloLfo) tremoloLfo.frequency.setTargetAtTime(v / 100, audioCtx.currentTime, 0.05); updateTremoloViz(); } });
+createKnob(document.getElementById('groupBreathPan'), { id: 'breathDepth', label: 'Breathing', min: 0, max: 100, value: 20, format: v => `${Math.round(v)}%`, onChange: v => { applyBreathDepth(v); updateBreathPanViz(); } });
+createKnob(document.getElementById('groupBreathPan'), { id: 'pan', label: 'Stereo', min: 0, max: 100, value: 25, format: v => `${Math.round(v)}%`, onChange: v => { applyPanDepth(v); updateBreathPanViz(); } });
+
+const DUST_COUNT = 18;
+function buildDustParticles() {
+  const layer = document.getElementById('dustLayer');
+  for (let i = 0; i < DUST_COUNT; i++) {
+    const p = document.createElement('div');
+    p.className = 'dust-particle';
+    p.style.left = `${Math.random() * 100}%`;
+    p.style.top = `${40 + Math.random() * 60}%`;
+    p.style.setProperty('--driftX', `${(Math.random() * 40 - 20).toFixed(1)}px`);
+    p.style.animationDuration = `${(8 + Math.random() * 10).toFixed(2)}s`;
+    p.style.animationDelay = `${(-Math.random() * 18).toFixed(2)}s`;
+    p.style.display = 'none';
+    layer.appendChild(p);
+  }
+}
+function updateSpaceViz() {
+  const reverb = controls.reverb.get() / 100, air = controls.air.get() / 100, vinyl = controls.vinyl.get() / 100;
+  document.getElementById('roomSvg').style.opacity = (0.05 + reverb * 0.6).toFixed(3);
+  document.getElementById('roomGlow').style.opacity = (air * 0.9).toFixed(3);
+  const layer = document.getElementById('dustLayer');
+  layer.style.setProperty('--dustOpacity', (0.15 + vinyl * 0.65).toFixed(3));
+  const particles = layer.querySelectorAll('.dust-particle');
+  const visibleCount = Math.round(particles.length * vinyl);
+  particles.forEach((p, i) => { p.style.display = i < visibleCount ? 'block' : 'none'; });
+}
+
+createKnob(document.getElementById('spacePage'), { id: 'reverb', label: 'Reverb', min: 0, max: 100, value: 35, format: v => `${Math.round(v)}%`, onChange: v => { applyReverbMix(v); updateSpaceViz(); } });
+createKnob(document.getElementById('spacePage'), { id: 'air', label: 'Air', min: 0, max: 100, value: 15, format: v => `${Math.round(v)}%`, onChange: v => { applyAirLevel(v); updateSpaceViz(); } });
+createKnob(document.getElementById('spacePage'), { id: 'vinyl', label: 'Vinyl', min: 0, max: 100, value: 20, format: v => `${Math.round(v)}%`, onChange: v => { applyVinylLevel(v); updateSpaceViz(); } });
+
+buildDustParticles();
+updateDroneEnsembleViz();
+updateTremoloViz();
+updateBreathPanViz();
+updateSpaceViz();
 
 /* ---------- pager (pages, swipe + dots) ---------- */
 
