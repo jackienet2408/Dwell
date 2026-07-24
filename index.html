@@ -380,31 +380,10 @@
             <div class="viz-group">
               <div class="viz-panel" id="panelDroneEnsemble">
                 <svg class="viz-svg" viewBox="0 0 120 56" preserveAspectRatio="none">
-                  <defs>
-                    <linearGradient id="waveFadeGradAbs" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="120" y2="0">
-                      <stop offset="0%" stop-color="#fff" stop-opacity="0"/>
-                      <stop offset="20%" stop-color="#fff" stop-opacity="1"/>
-                      <stop offset="80%" stop-color="#fff" stop-opacity="1"/>
-                      <stop offset="100%" stop-color="#fff" stop-opacity="0"/>
-                    </linearGradient>
-                    <mask id="waveFadeMask" maskUnits="userSpaceOnUse" x="0" y="0" width="120" height="56">
-                      <rect x="0" y="0" width="120" height="56" fill="url(#waveFadeGradAbs)"/>
-                    </mask>
-                  </defs>
-                  <g mask="url(#waveFadeMask)">
-                    <g id="ensembleWaveGroup" style="transform-origin: 60px 28px;">
-                      <path id="ensembleWave1" d="M-40,28 Q-10,14 20,28 T80,28 T140,28" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round">
-                        <animateTransform attributeName="transform" type="translate" from="0,0" to="-60,0" dur="7s" repeatCount="indefinite"/>
-                      </path>
-                      <path id="ensembleWave2" d="M-40,28 Q-10,42 20,28 T80,28 T140,28" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round">
-                        <animateTransform attributeName="transform" type="translate" from="0,0" to="60,0" dur="9s" repeatCount="indefinite"/>
-                      </path>
-                      <path id="ensembleWave3" d="M-40,28 Q-10,16 20,28 T80,28 T140,28" fill="none" stroke="var(--accent)" stroke-width="1.4" stroke-linecap="round">
-                        <animateTransform attributeName="transform" type="translate" from="0,0" to="-60,0" dur="11s" repeatCount="indefinite"/>
-                      </path>
-                    </g>
-                  </g>
-                  <path id="droneWave" d="M0,28 Q30,18 60,28 T120,28" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/>
+                  <path id="ensembleWave1" fill="rgba(255,255,255,1)" stroke="none"/>
+                  <path id="ensembleWave2" fill="rgba(225,227,232,1)" stroke="none"/>
+                  <path id="ensembleWave3" fill="rgba(198,201,212,1)" stroke="none"/>
+                  <path id="droneWave" d="M0,28 Q30,18 60,28 T120,28" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linecap="round" filter="url(#softGlow)"/>
                 </svg>
               </div>
               <div class="viz-knobs" id="groupDroneEnsemble"></div>
@@ -669,9 +648,12 @@ function applyReverbMix(pct) {
 function applyTremoloDepth(pct) { if (audioCtx) tremoloLfoGain.gain.setTargetAtTime((pct / 100) * 0.5, audioCtx.currentTime, 0.05); }
 function applyBreathDepth(pct) { if (audioCtx) filterBreathGain.gain.setTargetAtTime((pct / 100) * 800, audioCtx.currentTime, 0.05); }
 function applyPanDepth(pct) { if (audioCtx) panLfoGain.gain.setTargetAtTime((pct / 100) * 0.9, audioCtx.currentTime, 0.05); }
-function applyAirLevel(pct) { if (audioCtx) noiseGain.gain.setTargetAtTime((pct / 100) * 0.03, audioCtx.currentTime, 0.05); }
+function applyAirLevel(pct) {
+  if (!audioCtx || activeChordIdx === null) return; // don't ramp audible while stopped; playChord re-applies on next trigger
+  noiseGain.gain.setTargetAtTime((pct / 100) * 0.03, audioCtx.currentTime, 0.05);
+}
 function applyVinylLevel(pct) {
-  if (!audioCtx) return;
+  if (!audioCtx || activeChordIdx === null) return;
   vinylCrackleGain.gain.setTargetAtTime((pct / 100) * 0.35, audioCtx.currentTime, 0.05);
   vinylHissGain.gain.setTargetAtTime((pct / 100) * 0.012, audioCtx.currentTime, 0.05);
 }
@@ -935,9 +917,14 @@ function drawRtaGrid(w, h) {
 const RTA_COLS = 110;
 const rtaColumns = Array.from({ length: RTA_COLS }, () => ({ topY: null, particles: [] }));
 
-function drawSpectrumFrame() {
+let lastFrameTs = null;
+function drawSpectrumFrame(ts) {
   requestAnimationFrame(drawSpectrumFrame);
-  if (document.hidden || !analyser) return;
+  if (document.hidden) return;
+  const dt = lastFrameTs === null ? 1 / 60 : Math.min((ts - lastFrameTs) / 1000, 0.1);
+  lastFrameTs = ts;
+  drawEnsembleFrame(dt);
+  if (!analyser) return;
   updateFaderMeter();
   const rect = rtaCanvas.getBoundingClientRect();
   if (rect.width === 0) return;
@@ -1184,18 +1171,60 @@ createKnob(document.getElementById('tonePage'), { id: 'detune', label: 'Shimmer'
 createKnob(document.getElementById('tonePage'), { id: 'attack', label: 'Swell', min: 0.2, max: 6, value: 1.5, format: v => `${v.toFixed(1)}s`, onChange: () => {} });
 createKnob(document.getElementById('tonePage'), { id: 'width', label: 'Voicing', min: 0, max: 2, step: 1, value: 1, format: v => v < 0.5 ? 'close' : v < 1.5 ? '+1oct' : '+2oct', onChange: () => refreshVoicing() });
 
+const ENSEMBLE_LINES = [
+  { id: 'ensembleWave1', wavelength: 42, speed: 0.55, phase: 0, maxWidth: 3.4, ceilFactor: 0.75 },
+  { id: 'ensembleWave2', wavelength: 58, speed: -0.4, phase: 2.1, maxWidth: 2.7, ceilFactor: 0.55 },
+  { id: 'ensembleWave3', wavelength: 31, speed: 0.7, phase: 4.2, maxWidth: 2.0, ceilFactor: 0.38 },
+];
+let droneEnsembleState = { drone: 0.35, ensemble: 0.4 };
+
 function updateDroneEnsembleViz() {
   const drone = controls.drone.get() / 100, ensemble = controls.ensemble.get() / 100;
+  droneEnsembleState.drone = drone;
+  droneEnsembleState.ensemble = ensemble;
   const droneOpacity = 0.25 + drone * 0.75;
   const droneWave = document.getElementById('droneWave');
   droneWave.style.opacity = droneOpacity.toFixed(3);
   droneWave.setAttribute('stroke-width', (2 + drone * 2.5).toFixed(2));
+}
 
-  const grp = document.getElementById('ensembleWaveGroup');
-  grp.style.transform = `scaleY(${(0.3 + ensemble * 1.2).toFixed(3)})`;
-  // each ensemble line is always dimmer than the current drone line, with its own ceiling for variety
-  [['ensembleWave1', 0.75], ['ensembleWave2', 0.55], ['ensembleWave3', 0.38]].forEach(([id, factor]) => {
-    document.getElementById(id).style.opacity = (droneOpacity * ensemble * factor).toFixed(3);
+function ensembleEdgeEnvelope(x) {
+  if (x <= 0 || x >= 120) return 0;
+  if (x < 24) return x / 24;
+  if (x > 96) return (120 - x) / 24;
+  return 1;
+}
+function buildRibbonPath(amp, wavelength, phase, maxWidth) {
+  const pts = [];
+  for (let x = 0; x <= 120; x += 3) pts.push({ x, y: 28 + amp * Math.sin((2 * Math.PI * x) / wavelength + phase) });
+  const upper = [], lower = [];
+  for (let i = 0; i < pts.length; i++) {
+    const prev = pts[i - 1] || pts[i], next = pts[i + 1] || pts[i];
+    const dx = next.x - prev.x, dy = next.y - prev.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const nx = -dy / len, ny = dx / len;
+    const w = (maxWidth * ensembleEdgeEnvelope(pts[i].x)) / 2;
+    upper.push({ x: pts[i].x + nx * w, y: pts[i].y + ny * w });
+    lower.push({ x: pts[i].x - nx * w, y: pts[i].y - ny * w });
+  }
+  let d = `M${upper[0].x.toFixed(2)},${upper[0].y.toFixed(2)} `;
+  d += upper.slice(1).map(p => `L${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' ');
+  d += ' ' + lower.slice().reverse().map(p => `L${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' ');
+  d += ' Z';
+  return d;
+}
+let ensembleTime = 0;
+function drawEnsembleFrame(dtSeconds) {
+  ensembleTime += dtSeconds;
+  const { drone, ensemble } = droneEnsembleState;
+  const droneOpacity = 0.25 + drone * 0.75;
+  const amp = 3 + ensemble * 9;
+  ENSEMBLE_LINES.forEach(line => {
+    const el = document.getElementById(line.id);
+    const opacity = droneOpacity * ensemble * line.ceilFactor;
+    el.style.opacity = opacity.toFixed(3);
+    if (opacity < 0.01) return;
+    el.setAttribute('d', buildRibbonPath(amp, line.wavelength, line.phase + ensembleTime * line.speed, line.maxWidth));
   });
 }
 function updateTremoloViz() {
@@ -1216,7 +1245,7 @@ function updateTremoloViz() {
   }
   document.getElementById('tremoloWavePath').setAttribute('d', d);
   document.getElementById('tremoloWavePath').style.opacity = (0.3 + depth * 0.7).toFixed(3);
-  document.getElementById('tremoloWaveGroup').style.animationDuration = `${clamp(2.6 - rateHz * 0.2, 0.3, 2.6).toFixed(2)}s`;
+  document.getElementById('tremoloWaveGroup').style.animationDuration = `${clamp(7 - rateHz * 0.4, 1.5, 7).toFixed(2)}s`;
 }
 function updateBreathPanViz() {
   document.getElementById('breathPanDot').style.setProperty('--breathAmp', (controls.breathDepth.get() / 100).toFixed(3));
@@ -1258,7 +1287,7 @@ function updateSpaceViz() {
 
 createKnob(document.getElementById('spacePage'), { id: 'reverb', label: 'Reverb', min: 0, max: 100, value: 35, format: v => `${Math.round(v)}%`, onChange: v => { applyReverbMix(v); updateSpaceViz(); } });
 createKnob(document.getElementById('spacePage'), { id: 'air', label: 'Air', min: 0, max: 100, value: 15, format: v => `${Math.round(v)}%`, onChange: v => { applyAirLevel(v); updateSpaceViz(); } });
-createKnob(document.getElementById('spacePage'), { id: 'vinyl', label: 'Vinyl', min: 0, max: 100, value: 20, format: v => `${Math.round(v)}%`, onChange: v => { applyVinylLevel(v); updateSpaceViz(); } });
+createKnob(document.getElementById('spacePage'), { id: 'vinyl', label: 'Vinyl', min: 0, max: 100, value: 0, format: v => `${Math.round(v)}%`, onChange: v => { applyVinylLevel(v); updateSpaceViz(); } });
 
 buildDustParticles();
 updateDroneEnsembleViz();
