@@ -380,16 +380,29 @@
             <div class="viz-group">
               <div class="viz-panel" id="panelDroneEnsemble">
                 <svg class="viz-svg" viewBox="0 0 120 56" preserveAspectRatio="none">
-                  <g id="ensembleWaveGroup" style="transform-origin: 60px 28px;">
-                    <path id="ensembleWave1" d="M-40,28 Q-10,14 20,28 T80,28 T140,28" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round">
-                      <animateTransform attributeName="transform" type="translate" from="0,0" to="-60,0" dur="7s" repeatCount="indefinite"/>
-                    </path>
-                    <path id="ensembleWave2" d="M-40,28 Q-10,42 20,28 T80,28 T140,28" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round">
-                      <animateTransform attributeName="transform" type="translate" from="0,0" to="60,0" dur="9s" repeatCount="indefinite"/>
-                    </path>
-                    <path id="ensembleWave3" d="M-40,28 Q-10,16 20,28 T80,28 T140,28" fill="none" stroke="var(--accent)" stroke-width="1.4" stroke-linecap="round">
-                      <animateTransform attributeName="transform" type="translate" from="0,0" to="-60,0" dur="11s" repeatCount="indefinite"/>
-                    </path>
+                  <defs>
+                    <linearGradient id="waveFadeGradAbs" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="120" y2="0">
+                      <stop offset="0%" stop-color="#fff" stop-opacity="0"/>
+                      <stop offset="20%" stop-color="#fff" stop-opacity="1"/>
+                      <stop offset="80%" stop-color="#fff" stop-opacity="1"/>
+                      <stop offset="100%" stop-color="#fff" stop-opacity="0"/>
+                    </linearGradient>
+                    <mask id="waveFadeMask" maskUnits="userSpaceOnUse" x="0" y="0" width="120" height="56">
+                      <rect x="0" y="0" width="120" height="56" fill="url(#waveFadeGradAbs)"/>
+                    </mask>
+                  </defs>
+                  <g mask="url(#waveFadeMask)">
+                    <g id="ensembleWaveGroup" style="transform-origin: 60px 28px;">
+                      <path id="ensembleWave1" d="M-40,28 Q-10,14 20,28 T80,28 T140,28" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round">
+                        <animateTransform attributeName="transform" type="translate" from="0,0" to="-60,0" dur="7s" repeatCount="indefinite"/>
+                      </path>
+                      <path id="ensembleWave2" d="M-40,28 Q-10,42 20,28 T80,28 T140,28" fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round">
+                        <animateTransform attributeName="transform" type="translate" from="0,0" to="60,0" dur="9s" repeatCount="indefinite"/>
+                      </path>
+                      <path id="ensembleWave3" d="M-40,28 Q-10,16 20,28 T80,28 T140,28" fill="none" stroke="var(--accent)" stroke-width="1.4" stroke-linecap="round">
+                        <animateTransform attributeName="transform" type="translate" from="0,0" to="-60,0" dur="11s" repeatCount="indefinite"/>
+                      </path>
+                    </g>
                   </g>
                   <path id="droneWave" d="M0,28 Q30,18 60,28 T120,28" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/>
                 </svg>
@@ -1195,10 +1208,11 @@ function updateTremoloViz() {
   const period = 120 / periods;
   const amp = 1.5 + depth * 15;
   const center = 28;
+  const step = clamp(period / 16, 0.4, 3); // keep ~16 samples per cycle so high rates stay smooth, not crooked
   let d = '';
-  for (let x = -60; x <= 300; x += 3) {
+  for (let x = -60; x <= 300; x += step) {
     const y = center + amp * Math.sin((2 * Math.PI * x) / period);
-    d += `${x === -60 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(2)} `;
+    d += `${x === -60 ? 'M' : 'L'}${x.toFixed(2)},${y.toFixed(2)} `;
   }
   document.getElementById('tremoloWavePath').setAttribute('d', d);
   document.getElementById('tremoloWavePath').style.opacity = (0.3 + depth * 0.7).toFixed(3);
