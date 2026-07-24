@@ -769,7 +769,7 @@ function drawRtaGrid(w, h) {
   });
 }
 
-const RTA_COLS = 64;
+const RTA_COLS = 110;
 const rtaColumns = Array.from({ length: RTA_COLS }, () => ({ topY: null, particles: [] }));
 
 function drawSpectrumFrame() {
@@ -786,7 +786,7 @@ function drawSpectrumFrame() {
   rtaCtx2d.clearRect(0, 0, w, h);
   drawRtaGrid(w, h);
 
-  const squareSize = 3.2, radius = 1.1;
+  const squareSize = 2.4, radius = 0.9;
   for (let c = 0; c < RTA_COLS; c++) {
     const fracL = c / RTA_COLS, fracR = (c + 1) / RTA_COLS;
     const fL = Math.exp(Math.log(RTA_MIN_F) + fracL * (Math.log(RTA_MAX_F) - Math.log(RTA_MIN_F)));
