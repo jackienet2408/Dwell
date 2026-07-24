@@ -20,6 +20,7 @@ Most "pad" tools are either expensive iOS apps tied to a subscription, or heavyw
 - **PA-style master fader** — an always-visible vertical fader with a live signal level meter, independent of whatever sound-design page is open
 - **Presets** — four built-in starting points (Warm & Soft, Bright Chapel, Vintage Tape, Wide Ambient) plus save-your-own custom presets, stored on-device
 - **Built for the booth** — screen wake lock while playing, a Stop button that only lights up when something's actually sounding, and a background glow that quietly follows whatever key/chord/preset is active
+- **Keeps playing when you switch apps** — audio is routed through a real media element with Media Session metadata (lock-screen "now playing" controls included), which is what lets iOS keep it running when you switch to a sheet-music app or the screen locks, instead of the OS cutting it the moment it's backgrounded
 - **Fully offline** — installs as a Home Screen PWA and runs with no network connection; no Apple Developer Program, no TestFlight
 
 ## Getting started

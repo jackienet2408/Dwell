@@ -183,6 +183,7 @@
 </style>
 </head>
 <body>
+<audio id="bgAudio" playsinline style="display:none"></audio>
 <div class="app-shell">
 <div class="app">
   <div class="bg-ambient" aria-hidden="true">
@@ -270,6 +271,7 @@ let tremoloGain = null, tremoloLfo = null, tremoloLfoGain = null;
 let panner = null, panLfo = null, panLfoGain = null;
 let dryGain = null, reverbSendGain = null, reverbWetGain = null, convolver = null;
 let masterGain = null;
+let mediaStreamDest = null;
 let noiseSource = null, noiseFilter = null, noiseGain = null;
 let vinylCrackleSource = null, vinylCrackleGain = null;
 let vinylHissFilter = null, vinylHissGain = null;
@@ -349,7 +351,12 @@ function ensureAudio() {
   convolver.connect(reverbWetGain);
   dryGain.connect(masterGain);
   reverbWetGain.connect(masterGain);
-  masterGain.connect(audioCtx.destination);
+  mediaStreamDest = audioCtx.createMediaStreamDestination();
+  masterGain.connect(mediaStreamDest);
+  const bgAudio = document.getElementById('bgAudio');
+  bgAudio.srcObject = mediaStreamDest.stream;
+  bgAudio.play().catch(() => {});
+  setupMediaSession();
 
   analyser = audioCtx.createAnalyser();
   analyser.fftSize = 2048;
@@ -599,7 +606,24 @@ async function requestWakeLock() {
   try { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); }
   catch (e) {}
 }
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && activeChordIdx !== null) requestWakeLock(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  if (activeChordIdx !== null) requestWakeLock();
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  const bgAudio = document.getElementById('bgAudio');
+  if (bgAudio && bgAudio.paused && activeChordIdx !== null) bgAudio.play().catch(() => {});
+});
+
+function setupMediaSession() {
+  if (!('mediaSession' in navigator)) return;
+  navigator.mediaSession.metadata = new MediaMetadata({ title: 'Dwell', artist: 'Worship Pad', album: 'Live' });
+  navigator.mediaSession.setActionHandler('play', () => { const bgAudio = document.getElementById('bgAudio'); if (bgAudio) bgAudio.play().catch(() => {}); });
+  navigator.mediaSession.setActionHandler('pause', () => document.getElementById('stop').click());
+  navigator.mediaSession.setActionHandler('stop', () => document.getElementById('stop').click());
+}
+function setMediaSessionState(state) {
+  if ('mediaSession' in navigator) navigator.mediaSession.playbackState = state;
+}
 
 /* ---------- spectrum (RTA) + filter cutoff graph ---------- */
 
@@ -1038,6 +1062,7 @@ function triggerChord(degreeIdx) {
   playSwellBar(pads[degreeIdx], controls.attack.get());
   updateNowPlaying();
   requestWakeLock();
+  setMediaSessionState('playing');
 
   document.getElementById('stop').classList.add('playing');
   glowChordTarget = pads[degreeIdx];
@@ -1054,6 +1079,7 @@ document.getElementById('stop').onclick = () => {
   document.querySelectorAll('#chords .chord-pad').forEach(c => c.classList.remove('active'));
   resetSwellBars();
   updateNowPlaying();
+  setMediaSessionState('paused');
   document.getElementById('stop').classList.remove('playing');
   glowChordTarget = null;
   positionGlow('glowChord', null);
