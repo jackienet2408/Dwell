@@ -228,7 +228,13 @@
   .stop-btn:active { transform: scale(0.94); }
   .stop-btn.playing { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); box-shadow: 0 0 20px rgba(239,68,68,0.28); }
 
+  /* padding-bottom (not the closed .page-dots, which only exists once the tray
+     is expanded) is what actually paints the home-indicator safe area — when
+     the tray sits collapsed (its default/most common state), this was the
+     bottom-most visible element and nothing reserved that space at all. */
   .studio-tray { position: relative; z-index: 1; flex: 0 0 auto; background: rgba(14,14,24,0.92); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 1px solid var(--border); }
+  /* Only needed while collapsed — once open, .page-dots already reserves this same space, so adding it here too would double it. */
+  .studio-tray:not(.open) { padding-bottom: env(safe-area-inset-bottom); }
   .tray-handle { all: unset; display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 9px 0 10px; width: 100%; }
   .tray-handle-bar { width: 36px; height: 4px; border-radius: 2px; background: var(--surface-strong); }
   .tray-handle-label { font-size: 12px; font-weight: 600; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
