@@ -136,6 +136,32 @@
   .preset-chip.reset { color: var(--text-muted); }
   .chip-glyph { flex: 0 0 auto; display: block; opacity: 0.55; transition: opacity .2s var(--ease); }
   .preset-chip.active .chip-glyph { opacity: 0.95; }
+  .preset-chip.custom { padding-right: 7px; }
+  .preset-chip .del {
+    position: relative; flex: 0 0 auto; margin-left: 2px;
+    display: flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; border-radius: 50%;
+    font-size: 15px; line-height: 1; color: var(--text-muted);
+    transition: background .18s var(--ease), color .18s var(--ease);
+  }
+  /* Grows the tap target to the chip's full height and out to its right edge
+     without changing the visual footprint — the bare glyph was ~9x16px, close
+     enough to the preset name to be a mis-tap risk on a booth iPad. */
+  .preset-chip .del::after { content: ''; position: absolute; top: -6px; right: -7px; bottom: -6px; left: -4px; }
+  .preset-chip .del:active { background: var(--danger-soft); color: var(--danger); }
+
+  .confirm-actions { display: flex; gap: 8px; margin-top: 20px; }
+  .confirm-btn { flex: 1 1 0; height: 46px; border-radius: 12px; font-weight: 700; font-size: 14px; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
+  .confirm-btn.go { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .confirm-btn.go.destructive { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); }
+  .confirm-actions.single .confirm-btn.cancel { display: none; }
+
+  /* Edge fade on horizontally scrolling strips — only on the side that actually
+     has more content, so a strip that fits shows no fade at all. */
+  .edge-fade { -webkit-mask-image: var(--edge-mask, none); mask-image: var(--edge-mask, none); }
+  .edge-fade.fade-right { --edge-mask: linear-gradient(90deg, #000 0, #000 calc(100% - 28px), transparent 100%); }
+  .edge-fade.fade-left { --edge-mask: linear-gradient(90deg, transparent 0, #000 28px, #000 100%); }
+  .edge-fade.fade-left.fade-right { --edge-mask: linear-gradient(90deg, transparent 0, #000 28px, #000 calc(100% - 28px), transparent 100%); }
   .preset-input-row { display: flex; gap: 6px; align-items: center; flex: 0 0 auto; }
   .preset-input-row input { height: 38px; border-radius: 999px; border: 1px solid var(--accent); background: var(--surface-strong); color: var(--text); padding: 0 14px; font-size: 13.5px; width: 140px; }
   .preset-input-row button { height: 38px; width: 38px; border-radius: 50%; border: 1px solid var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 700; }
@@ -379,7 +405,7 @@
      keyboard / Bluetooth HID events to the page at all unless a focusable
      text input is actively focused. readonly suppresses iOS's on-screen
      keyboard while keeping this a valid target for external key events. -->
-<input type="text" id="pedalCapture" readonly inputmode="none" autocomplete="off" autocorrect="off" spellcheck="false" aria-hidden="true" tabindex="-1" style="position:fixed; top:-100px; left:0; width:1px; height:1px; opacity:0; pointer-events:none; border:none;">
+<div id="pedalCapture" contenteditable="true" inputmode="none" autocorrect="off" spellcheck="false" aria-hidden="true" tabindex="-1" style="position:fixed; top:-100px; left:0; width:1px; height:1px; opacity:0; pointer-events:none; overflow:hidden;"></div>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <defs>
     <linearGradient id="knobFillGrad" x1="0%" y1="100%" x2="100%" y2="0%">
@@ -561,6 +587,18 @@
   <button class="install-modal-remind" id="onboardingGotIt">Got it</button>
 </div>
 
+<div class="modal-scrim" id="confirmScrim"></div>
+<div class="install-modal" id="confirmModal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+  <div class="install-modal-header">
+    <div class="install-modal-title" id="confirmTitle"></div>
+  </div>
+  <div class="install-modal-body" id="confirmBody"></div>
+  <div class="confirm-actions" id="confirmActions">
+    <button class="confirm-btn cancel" id="confirmCancel">Cancel</button>
+    <button class="confirm-btn go" id="confirmOk">OK</button>
+  </div>
+</div>
+
 <div id="keyDebugToast" aria-hidden="true"></div>
 
 <script>
@@ -596,12 +634,62 @@ const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matc
 if (reducedMotion) document.documentElement.classList.add('reduced-motion');
 function clamp(v, min, max) { return Math.min(max, Math.max(min, v)); }
 
+/* ---------- in-app dialogs ----------
+   Replaces native alert()/confirm(), which render as system modals stamped with
+   the origin in a standalone PWA. Reuses the existing .install-modal shell so
+   destructive prompts look like the rest of the app. */
+
+let dialogOpen = false;
+function showDialog({ title, body, confirmLabel = 'OK', cancelLabel = 'Cancel', destructive = false, confirmOnly = false }) {
+  return new Promise(resolve => {
+    const scrim = document.getElementById('confirmScrim');
+    const modal = document.getElementById('confirmModal');
+    const okBtn = document.getElementById('confirmOk');
+    const cancelBtn = document.getElementById('confirmCancel');
+    document.getElementById('confirmTitle').textContent = title;
+    document.getElementById('confirmBody').textContent = body;
+    okBtn.textContent = confirmLabel;
+    cancelBtn.textContent = cancelLabel;
+    okBtn.classList.toggle('destructive', destructive);
+    document.getElementById('confirmActions').classList.toggle('single', confirmOnly);
+    scrim.classList.add('show');
+    modal.classList.add('show');
+    dialogOpen = true;
+
+    let settled = false;
+    function close(result) {
+      if (settled) return;
+      settled = true;
+      dialogOpen = false;
+      scrim.classList.remove('show');
+      modal.classList.remove('show');
+      okBtn.onclick = cancelBtn.onclick = scrim.onclick = null;
+      document.removeEventListener('keydown', onKey, true);
+      resolve(result);
+    }
+    function onKey(e) {
+      if (e.key === 'Escape') { e.preventDefault(); close(false); }
+      else if (e.key === 'Enter') { e.preventDefault(); close(true); }
+    }
+    okBtn.onclick = () => close(true);
+    cancelBtn.onclick = () => close(false);
+    scrim.onclick = () => close(confirmOnly);
+    document.addEventListener('keydown', onKey, true);
+    setTimeout(() => okBtn.focus(), 50);
+  });
+}
+function showAlert(title, body) { return showDialog({ title, body, confirmOnly: true }); }
+
 /* ---------- iOS standalone hardware-keyboard capture ---------- */
 /* See the HTML comment above #pedalCapture: a standalone/Home-Screen web app
    on iOS won't reliably receive hardware keyboard (or Bluetooth HID pedal)
-   key events unless a focusable text input is actively focused. We keep this
-   hidden input focused at all times so the foot pedal shortcuts below can work. */
+   key events at all unless a genuinely EDITABLE element is focused — a
+   readonly input didn't qualify (confirmed: zero events reached the page in
+   standalone mode with one focused). contenteditable does count as editable,
+   so we keep one of those focused instead, and immediately clear anything it
+   ever receives so nothing accumulates or becomes visible. */
 const pedalCapture = document.getElementById('pedalCapture');
+pedalCapture.addEventListener('input', () => { pedalCapture.textContent = ''; });
 function focusPedalCapture() {
   if (document.activeElement && document.activeElement.tagName === 'INPUT' && document.activeElement !== pedalCapture) return; // don't steal focus from a real text field (e.g. preset naming)
   try { pedalCapture.focus({ preventScroll: true }); } catch (e) {}
@@ -678,7 +766,7 @@ function ensureAudio() {
   try {
     audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   } catch (e) {
-    alert('Could not start audio on this device. Try reloading the page.');
+    showAlert('Audio unavailable', 'Could not start audio on this device. Try reloading the page.');
     return;
   }
 
@@ -1814,6 +1902,7 @@ function focusIsDeliberateSlider(target) {
 
 document.addEventListener('keydown', (e) => {
   if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+  if (dialogOpen) return; // a pedal tap shouldn't retrigger the pad behind an open dialog
   if (focusIsDeliberateSlider(e.target)) return; // let a genuinely keyboard-focused knob/fader handle its own arrows
   e.preventDefault();
   if (e.key === 'ArrowUp') stepKey(1);
@@ -1854,7 +1943,7 @@ const BUILTIN_PRESETS = {
 function loadCustomPresets() { try { return JSON.parse(localStorage.getItem('dwellCustomPresets') || '{}'); } catch (e) { return {}; } }
 function saveCustomPresets(obj) {
   try { localStorage.setItem('dwellCustomPresets', JSON.stringify(obj)); return true; }
-  catch (e) { alert('Could not save preset — device storage is full.'); return false; }
+  catch (e) { showAlert('Could not save', 'Device storage is full, so this preset was not saved. Delete an existing preset and try again.'); return false; }
 }
 
 function applyPresetValues(values) {
@@ -1936,9 +2025,14 @@ function renderPresets() {
       glowPresetTarget = chip;
       positionGlow('glowPreset', chip);
     };
-    chip.querySelector('.del').onclick = (e) => {
+    chip.querySelector('.del').onclick = async (e) => {
       e.stopPropagation();
-      if (!confirm(`Delete preset "${name}"?`)) return;
+      const ok = await showDialog({
+        title: 'Delete preset?',
+        body: `"${name}" will be removed from this device. This can't be undone.`,
+        confirmLabel: 'Delete', destructive: true,
+      });
+      if (!ok) return;
       const updated = loadCustomPresets();
       delete updated[name];
       saveCustomPresets(updated);
@@ -1952,6 +2046,7 @@ function renderPresets() {
   addChip.textContent = '+ Save current';
   addChip.onclick = () => showSaveForm(strip, addChip);
   strip.appendChild(addChip);
+  refreshEdgeFades();
 }
 
 function showSaveForm(strip, addChip) {
@@ -1961,9 +2056,21 @@ function showSaveForm(strip, addChip) {
   strip.replaceChild(row, addChip);
   const input = row.querySelector('input');
   input.focus();
-  const commit = () => {
+  let settled = false;
+  const commit = async () => {
+    if (settled) return;
     const name = input.value.trim() || `Custom ${Object.keys(loadCustomPresets()).length + 1}`;
     const updated = loadCustomPresets();
+    if (Object.prototype.hasOwnProperty.call(updated, name)) {
+      const ok = await showDialog({
+        title: 'Replace preset?',
+        body: `"${name}" already exists. Replace it with the current settings?`,
+        confirmLabel: 'Replace',
+      });
+      if (!ok) { input.focus(); input.select(); return; }
+    }
+    if (settled) return;
+    settled = true;
     updated[name] = gatherCurrentValues();
     saveCustomPresets(updated);
     renderPresets();
@@ -1983,22 +2090,54 @@ function showRenameForm(strip, chip, oldName, values) {
   strip.replaceChild(row, chip);
   input.focus();
   input.select();
-  let settled = false;
-  const commit = () => {
+  let settled = false, suppressBlur = false;
+  const commit = async () => {
+    if (settled) return;
+    const newName = input.value.trim();
+    if (!newName || newName === oldName) { settled = true; renderPresets(); return; }
+    const updated = loadCustomPresets();
+    if (Object.prototype.hasOwnProperty.call(updated, newName)) {
+      // opening the dialog blurs the input, which would otherwise cancel the rename
+      suppressBlur = true;
+      const ok = await showDialog({
+        title: 'Replace preset?',
+        body: `"${newName}" already exists. Renaming "${oldName}" will replace it.`,
+        confirmLabel: 'Replace',
+      });
+      suppressBlur = false;
+      if (!ok) { input.focus(); input.select(); return; }
+    }
     if (settled) return;
     settled = true;
-    const newName = input.value.trim();
-    const updated = loadCustomPresets();
     delete updated[oldName];
-    updated[newName || oldName] = values;
+    updated[newName] = values;
     saveCustomPresets(updated);
     renderPresets();
   };
   const cancel = () => { if (!settled) { settled = true; renderPresets(); } };
   btn.onclick = commit;
   input.onkeydown = (e) => { if (e.key === 'Enter') commit(); else if (e.key === 'Escape') cancel(); };
-  input.onblur = () => setTimeout(cancel, 150);
+  input.onblur = () => setTimeout(() => { if (!suppressBlur) cancel(); }, 150);
 }
+
+/* ---------- scroll edge fades ---------- */
+
+const edgeFadeTargets = [];
+function refreshEdgeFades() {
+  edgeFadeTargets.forEach(el => {
+    const max = el.scrollWidth - el.clientWidth;
+    el.classList.toggle('fade-left', el.scrollLeft > 2);
+    el.classList.toggle('fade-right', el.scrollLeft < max - 2);
+  });
+}
+function initEdgeFade(el) {
+  el.classList.add('edge-fade');
+  edgeFadeTargets.push(el);
+  el.addEventListener('scroll', refreshEdgeFades, { passive: true });
+}
+initEdgeFade(document.getElementById('presetsStrip'));
+initEdgeFade(document.getElementById('keys'));
+window.addEventListener('resize', refreshEdgeFades);
 
 buildKeys();
 buildChords();
@@ -2006,6 +2145,7 @@ renderPresets();
 renderPageDots();
 updateNowPlaying();
 positionGlow('glowKey', glowKeyTarget);
+refreshEdgeFades();
 
 const shortcutPresetKey = new URLSearchParams(location.search).get('preset');
 if (shortcutPresetKey && BUILTIN_PRESETS[shortcutPresetKey]) {
