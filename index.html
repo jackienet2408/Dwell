@@ -1747,6 +1747,17 @@ function gatherCurrentValues() {
   return out;
 }
 
+function presetGlyphSVG(values) {
+  const keys = ['drone', 'ensemble', 'reverb', 'air', 'vinyl'];
+  const bars = keys.map((k, i) => {
+    const v = clamp((values[k] || 0) / 100, 0, 1);
+    const h = Math.max(1.5, v * 12);
+    const x = i * 3.1;
+    return `<rect x="${x.toFixed(2)}" y="${(13 - h).toFixed(2)}" width="1.8" height="${h.toFixed(2)}" rx="0.9"/>`;
+  }).join('');
+  return `<svg class="chip-glyph" width="15" height="13" viewBox="0 0 15 13" fill="currentColor" aria-hidden="true">${bars}</svg>`;
+}
+
 function renderPresets() {
   const strip = document.getElementById('presetsStrip');
   strip.innerHTML = '';
@@ -1765,7 +1776,7 @@ function renderPresets() {
   Object.entries(BUILTIN_PRESETS).forEach(([key, preset]) => {
     const chip = document.createElement('button');
     chip.className = 'preset-chip';
-    chip.textContent = preset.name;
+    chip.innerHTML = `${presetGlyphSVG(preset.values)}<span>${preset.name}</span>`;
     chip.onclick = () => {
       applyPresetValues(preset.values);
       clearActivePreset();
@@ -1779,8 +1790,8 @@ function renderPresets() {
   Object.entries(custom).forEach(([name, values]) => {
     const chip = document.createElement('button');
     chip.className = 'preset-chip custom';
-    chip.innerHTML = `<span>${name}</span><span class="del" aria-label="Delete preset">×</span>`;
-    chip.querySelector('span:first-child').onclick = () => {
+    chip.innerHTML = `${presetGlyphSVG(values)}<span class="preset-name">${name}</span><span class="del" aria-label="Delete preset">×</span>`;
+    chip.querySelector('.preset-name').onclick = () => {
       applyPresetValues(values);
       clearActivePreset();
       chip.classList.add('active');
