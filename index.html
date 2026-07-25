@@ -43,7 +43,12 @@
   }
   body { background: radial-gradient(120% 90% at 15% 0%, var(--bg-1) 0%, var(--bg-0) 55%); }
 
-  .app-shell { height: 100dvh; display: flex; overflow: hidden; }
+  /* position:fixed + inset:0 instead of height:100dvh — iOS standalone PWAs
+     have a known bug where 100dvh under-reports the true visual viewport
+     (missing the home-indicator safe area), leaving a gap that shows
+     WKWebView's default black background through it. Fixed positioning
+     reliably fills the actual viewport (with viewport-fit=cover above). */
+  .app-shell { position: fixed; inset: 0; display: flex; overflow: hidden; background: var(--bg-0); }
   .app-shell.boot-in { opacity: 0; filter: blur(6px); transform: scale(0.99); }
   .app-shell.boot-ready { opacity: 1; filter: blur(0); transform: scale(1); transition: opacity .6s var(--ease), filter .6s var(--ease), transform .6s var(--ease); }
   .reduced-motion .app-shell.boot-in { opacity: 0; filter: none; transform: none; }
