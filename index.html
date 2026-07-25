@@ -388,15 +388,6 @@
   .install-modal-body p:first-child { margin-top: 0; }
   .install-modal-note { font-size: 12px; color: var(--text-muted); margin-bottom: 14px; padding: 10px 12px; background: var(--surface); border-radius: 10px; border: 1px solid var(--border); }
   .install-modal-remind { width: 100%; margin-top: 18px; height: 46px; border-radius: 12px; background: var(--accent-soft); border: 1px solid var(--accent); color: var(--accent); font-weight: 700; font-size: 14px; }
-
-  /* TEMPORARY pedal debug toast — remove once the iPad foot-pedal issue is diagnosed */
-  #keyDebugToast {
-    position: fixed; left: 50%; bottom: calc(90px + env(safe-area-inset-bottom)); transform: translateX(-50%);
-    max-width: 90vw; padding: 10px 16px; border-radius: 12px; background: rgba(20,20,30,0.92);
-    border: 1px solid var(--accent); color: var(--text); font-size: 13px; font-family: ui-monospace, monospace;
-    z-index: 60; opacity: 0; pointer-events: none; transition: opacity .2s linear; white-space: pre-wrap; text-align: center;
-  }
-  #keyDebugToast.show { opacity: 1; }
 </style>
 </head>
 <body>
@@ -599,8 +590,6 @@
   </div>
 </div>
 
-<div id="keyDebugToast" aria-hidden="true"></div>
-
 <script>
 const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 const MAJOR_SCALE = [0,2,4,5,7,9,11];
@@ -696,19 +685,6 @@ function focusPedalCapture() {
 }
 document.addEventListener('pointerup', () => setTimeout(focusPedalCapture, 0));
 focusPedalCapture();
-
-/* TEMPORARY: on-screen key event debug toast — remove once the iPad foot-pedal
-   issue is diagnosed. Listens at the window capture phase so it shows every
-   keydown that reaches the page at all, regardless of what has focus. */
-const keyDebugToast = document.getElementById('keyDebugToast');
-let keyDebugHideTimer = null;
-window.addEventListener('keydown', (e) => {
-  const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : String(e.target);
-  keyDebugToast.textContent = `key="${e.key}" code="${e.code}" target=<${tag}${e.target && e.target.id ? '#' + e.target.id : ''}>`;
-  keyDebugToast.classList.add('show');
-  clearTimeout(keyDebugHideTimer);
-  keyDebugHideTimer = setTimeout(() => keyDebugToast.classList.remove('show'), 4000);
-}, true);
 
 /* ---------- audio engine ---------- */
 
@@ -1460,9 +1436,11 @@ function createKnob(container, cfg) {
   }
 
   function setValue(v) {
-    val = clamp(step ? Math.round(v / step) * step : v, min, max);
+    const newVal = clamp(step ? Math.round(v / step) * step : v, min, max);
+    const changed = newVal !== val;
+    val = newVal;
     render();
-    onChange(val);
+    if (changed) onChange(val); // a stepped knob (e.g. Voicing) can get the same rounded value on every pointermove tick during a drag — skip the redundant callback
   }
 
   let dragStartY = 0, dragStartVal = 0, dragging = false;
@@ -1862,11 +1840,20 @@ function triggerChord(degreeIdx) {
   positionGlow('glowChord', pads[degreeIdx]);
 }
 
+let refreshVoicingTimer = null;
 function refreshVoicing() {
   if (activeChordIdx === null) return;
-  const width = controls.width.get();
-  const { scale } = getActiveScale();
-  playChord(degreeToMidiTriad(rootMidi, activeChordIdx, width, scale), true);
+  // playChord() rebuilds every oscillator in the chord (up to ~8 nodes per
+  // note) — a knob drag fires onChange on every pointermove tick, which
+  // without debouncing meant dozens of full node rebuilds per second while
+  // dragging Ensemble or Voicing. That kind of AudioNode churn is a known
+  // source of Safari/WebKit memory pressure (silently reloads the page).
+  clearTimeout(refreshVoicingTimer);
+  refreshVoicingTimer = setTimeout(() => {
+    const width = controls.width.get();
+    const { scale } = getActiveScale();
+    playChord(degreeToMidiTriad(rootMidi, activeChordIdx, width, scale), true);
+  }, 90);
 }
 
 function stopEverything() {
