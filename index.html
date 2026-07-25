@@ -235,6 +235,15 @@
   .viz-svg { width: 100%; height: 100%; overflow: visible; }
   .viz-knobs { display: flex; gap: 6px; }
   .viz-knobs .knob-cell .knob { width: 56px; height: 56px; }
+  .tap-tempo-btn {
+    height: 30px; padding: 0 12px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border);
+    color: var(--text-muted); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+    display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 2px;
+    transition: background .15s var(--ease), border-color .15s var(--ease), color .15s var(--ease);
+  }
+  .tap-tempo-btn:active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .tap-tempo-btn span { font-weight: 700; color: var(--text); }
+  .tap-tempo-btn span:not(:empty)::before { content: ' · '; color: var(--text-muted); }
 
   .tremolo-wave-group { animation: tremWaveFlow linear infinite; }
   @keyframes tremWaveFlow { from { transform: translateX(0); } to { transform: translateX(-100%); } }
@@ -426,6 +435,7 @@
                 </svg>
               </div>
               <div class="viz-knobs" id="groupTremolo"></div>
+              <button class="tap-tempo-btn" id="tapTempoBtn" aria-label="Tap tempo for tremolo rate">Tap Tempo<span id="tapTempoBpm"></span></button>
             </div>
             <div class="viz-group">
               <div class="viz-panel" id="panelBreathPan">
@@ -450,8 +460,8 @@
             </svg>
             <div class="dust-layer" id="dustLayer"></div>
           </div>
-          <div class="knob-row knob-row-3" id="spacePage"></div>
-          <p class="hint">Reverb fades in the room. Air brightens its glow. Vinyl fills the air with dust.</p>
+          <div class="knob-row" id="spacePage"></div>
+          <p class="hint">Reverb fades in the room. Air brightens its glow. Vinyl fills the air with dust. Halo blooms an octave above.</p>
         </div>
       </div>
       <div class="page-dots" id="pageDots"></div>
@@ -514,6 +524,7 @@ let filterBreathLfo = null, filterBreathGain = null;
 let tremoloGain = null, tremoloLfo = null, tremoloLfoGain = null;
 let panner = null, panLfo = null, panLfoGain = null;
 let dryGain = null, reverbSendGain = null, reverbWetGain = null, convolver = null;
+let shimmerSendGain = null, shimmerShifter = null;
 let masterGain = null;
 let mediaStreamDest = null;
 let noiseSource = null, noiseFilter = null, noiseGain = null;
@@ -544,6 +555,43 @@ function generateReverbImpulse(ctx, duration = 3, decay = 3.2) {
     for (let i = 0; i < length; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, decay);
   }
   return impulse;
+}
+
+/* Octave-up shimmer pitch shifter: two grain "voices" read a delay line whose
+   delay time ramps from grainSize down to 0 (playback speed 2x = +12 semitones),
+   crossfaded with a half-sine window so each voice's reset click lands while
+   the other voice's window is near zero. */
+function createOctaveUpShifter(ctx, grainSize = 0.1) {
+  const len = Math.max(2, Math.round(grainSize * ctx.sampleRate));
+  const rampBuffer = ctx.createBuffer(1, len, ctx.sampleRate);
+  const rampData = rampBuffer.getChannelData(0);
+  for (let i = 0; i < len; i++) rampData[i] = grainSize * (1 - i / len);
+  const windowBuffer = ctx.createBuffer(1, len, ctx.sampleRate);
+  const windowData = windowBuffer.getChannelData(0);
+  for (let i = 0; i < len; i++) windowData[i] = Math.sin(Math.PI * i / len);
+
+  const input = ctx.createGain();
+  const output = ctx.createGain();
+  const voices = [0, grainSize / 2].map(phaseOffset => {
+    const delay = ctx.createDelay(grainSize * 1.2);
+    delay.delayTime.value = grainSize;
+    const rampSrc = ctx.createBufferSource();
+    rampSrc.buffer = rampBuffer; rampSrc.loop = true;
+    rampSrc.connect(delay.delayTime);
+
+    const winSrc = ctx.createBufferSource();
+    winSrc.buffer = windowBuffer; winSrc.loop = true;
+    const voiceGain = ctx.createGain();
+    voiceGain.gain.value = 0;
+    winSrc.connect(voiceGain.gain);
+
+    input.connect(delay).connect(voiceGain).connect(output);
+    const startAt = ctx.currentTime + phaseOffset;
+    rampSrc.start(startAt);
+    winSrc.start(startAt);
+    return { delay, rampSrc, winSrc, voiceGain };
+  });
+  return { input, output, voices };
 }
 
 function ensureAudio() {
@@ -600,6 +648,13 @@ function ensureAudio() {
   convolver.connect(reverbWetGain);
   dryGain.connect(masterGain);
   reverbWetGain.connect(masterGain);
+
+  shimmerSendGain = audioCtx.createGain();
+  shimmerSendGain.gain.value = 0;
+  shimmerShifter = createOctaveUpShifter(audioCtx);
+  panner.connect(shimmerSendGain);
+  shimmerSendGain.connect(shimmerShifter.input);
+  shimmerShifter.output.connect(convolver);
   mediaStreamDest = audioCtx.createMediaStreamDestination();
   masterGain.connect(mediaStreamDest);
   const bgAudio = document.getElementById('bgAudio');
@@ -618,6 +673,7 @@ function ensureAudio() {
   applyTremoloDepth(controls.tremDepth.get());
   applyBreathDepth(controls.breathDepth.get());
   applyPanDepth(controls.pan.get());
+  applyShimmerLevel(controls.shimmer.get());
 
   setupNoiseLayer();
   setupVinylLayer();
@@ -693,6 +749,7 @@ function applyReverbMix(pct) {
 function applyTremoloDepth(pct) { if (audioCtx) tremoloLfoGain.gain.setTargetAtTime((pct / 100) * 0.5, audioCtx.currentTime, 0.05); }
 function applyBreathDepth(pct) { if (audioCtx) filterBreathGain.gain.setTargetAtTime((pct / 100) * 800, audioCtx.currentTime, 0.05); }
 function applyPanDepth(pct) { if (audioCtx) panLfoGain.gain.setTargetAtTime((pct / 100) * 0.9, audioCtx.currentTime, 0.05); }
+function applyShimmerLevel(pct) { if (audioCtx) shimmerSendGain.gain.setTargetAtTime((pct / 100) * 0.7, audioCtx.currentTime, 0.05); }
 function applyAirLevel(pct) {
   if (!audioCtx || activeChordIdx === null) return; // don't ramp audible while stopped; playChord re-applies on next trigger
   noiseGain.gain.setTargetAtTime((pct / 100) * 0.03, audioCtx.currentTime, 0.05);
@@ -1337,6 +1394,26 @@ createKnob(document.getElementById('groupDroneEnsemble'), { id: 'drone', label: 
 createKnob(document.getElementById('groupDroneEnsemble'), { id: 'ensemble', label: 'Ensemble', min: 0, max: 100, value: 40, format: v => `${Math.round(v)}%`, onChange: () => { refreshVoicing(); updateDroneEnsembleViz(); } });
 createKnob(document.getElementById('groupTremolo'), { id: 'tremDepth', label: 'Tremolo', min: 0, max: 100, value: 0, format: v => `${Math.round(v)}%`, onChange: v => { applyTremoloDepth(v); updateTremoloViz(); } });
 createKnob(document.getElementById('groupTremolo'), { id: 'tremRate', label: 'Trem Rate', min: 10, max: 600, value: 180, format: v => `${(v / 100).toFixed(2)}Hz`, onChange: v => { if (tremoloLfo) tremoloLfo.frequency.setTargetAtTime(v / 100, audioCtx.currentTime, 0.05); updateTremoloViz(); } });
+
+/* ---------- tap tempo (drives Trem Rate) ---------- */
+
+let tapTimes = [];
+const tapTempoBpmEl = document.getElementById('tapTempoBpm');
+document.getElementById('tapTempoBtn').addEventListener('click', () => {
+  const now = performance.now();
+  if (tapTimes.length && now - tapTimes[tapTimes.length - 1] > 2000) tapTimes = [];
+  tapTimes.push(now);
+  if (tapTimes.length > 5) tapTimes.shift();
+  if (tapTimes.length < 2) { tapTempoBpmEl.textContent = ''; return; }
+  const intervals = [];
+  for (let i = 1; i < tapTimes.length; i++) intervals.push(tapTimes[i] - tapTimes[i - 1]);
+  const avgMs = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+  const bpm = 60000 / avgMs;
+  const hz = clamp(bpm / 60, 0.1, 6);
+  controls.tremRate.set(hz * 100);
+  tapTempoBpmEl.textContent = `${Math.round(bpm)} BPM`;
+  if (!applyingPreset) clearActivePreset();
+});
 createKnob(document.getElementById('groupBreathPan'), { id: 'breathDepth', label: 'Breathing', min: 0, max: 100, value: 20, format: v => `${Math.round(v)}%`, onChange: v => { applyBreathDepth(v); updateBreathPanViz(); } });
 createKnob(document.getElementById('groupBreathPan'), { id: 'pan', label: 'Stereo', min: 0, max: 100, value: 25, format: v => `${Math.round(v)}%`, onChange: v => { applyPanDepth(v); updateBreathPanViz(); } });
 
@@ -1369,6 +1446,7 @@ function updateSpaceViz() {
 createKnob(document.getElementById('spacePage'), { id: 'reverb', label: 'Reverb', min: 0, max: 100, value: 35, format: v => `${Math.round(v)}%`, onChange: v => { applyReverbMix(v); updateSpaceViz(); } });
 createKnob(document.getElementById('spacePage'), { id: 'air', label: 'Air', min: 0, max: 100, value: 15, format: v => `${Math.round(v)}%`, onChange: v => { applyAirLevel(v); updateSpaceViz(); } });
 createKnob(document.getElementById('spacePage'), { id: 'vinyl', label: 'Vinyl', min: 0, max: 100, value: 0, format: v => `${Math.round(v)}%`, onChange: v => { applyVinylLevel(v); updateSpaceViz(); } });
+createKnob(document.getElementById('spacePage'), { id: 'shimmer', label: 'Halo', min: 0, max: 100, value: 0, format: v => `${Math.round(v)}%`, onChange: v => applyShimmerLevel(v) });
 
 buildDustParticles();
 updateDroneEnsembleViz();
@@ -1577,15 +1655,15 @@ function clearActivePreset() {
   positionGlow('glowPreset', null);
 }
 
-const ALL_PARAM_IDS = ['cutoff','detune','attack','width','vol','drone','ensemble','tremDepth','tremRate','breathDepth','air','pan','reverb','vinyl'];
+const ALL_PARAM_IDS = ['cutoff','detune','attack','width','vol','drone','ensemble','tremDepth','tremRate','breathDepth','air','pan','reverb','vinyl','shimmer'];
 
-const DEFAULT_VALUES = { cutoff:1200, detune:6, attack:1.5, width:1, vol:60, drone:35, ensemble:40, tremDepth:0, tremRate:180, breathDepth:20, air:15, pan:25, reverb:35, vinyl:0 };
+const DEFAULT_VALUES = { cutoff:1200, detune:6, attack:1.5, width:1, vol:60, drone:35, ensemble:40, tremDepth:0, tremRate:180, breathDepth:20, air:15, pan:25, reverb:35, vinyl:0, shimmer:0 };
 
 const BUILTIN_PRESETS = {
-  warmSoft: { name: 'Warm & Soft', values: { cutoff:900, detune:5, attack:2.2, width:1, vol:60, drone:40, ensemble:35, tremDepth:0, tremRate:150, breathDepth:15, air:12, pan:20, reverb:40, vinyl:10 } },
-  brightChapel: { name: 'Bright Chapel', values: { cutoff:2600, detune:8, attack:1.0, width:1, vol:62, drone:25, ensemble:55, tremDepth:0, tremRate:150, breathDepth:25, air:18, pan:35, reverb:45, vinyl:0 } },
-  vintageTape: { name: 'Vintage Tape', values: { cutoff:1000, detune:10, attack:1.8, width:0, vol:58, drone:30, ensemble:30, tremDepth:15, tremRate:80, breathDepth:20, air:20, pan:15, reverb:30, vinyl:55 } },
-  wideAmbient: { name: 'Wide Ambient', values: { cutoff:1800, detune:14, attack:3.5, width:2, vol:55, drone:45, ensemble:60, tremDepth:0, tremRate:150, breathDepth:35, air:16, pan:60, reverb:55, vinyl:8 } },
+  warmSoft: { name: 'Warm & Soft', values: { cutoff:900, detune:5, attack:2.2, width:1, vol:60, drone:40, ensemble:35, tremDepth:0, tremRate:150, breathDepth:15, air:12, pan:20, reverb:40, vinyl:10, shimmer:0 } },
+  brightChapel: { name: 'Bright Chapel', values: { cutoff:2600, detune:8, attack:1.0, width:1, vol:62, drone:25, ensemble:55, tremDepth:0, tremRate:150, breathDepth:25, air:18, pan:35, reverb:45, vinyl:0, shimmer:0 } },
+  vintageTape: { name: 'Vintage Tape', values: { cutoff:1000, detune:10, attack:1.8, width:0, vol:58, drone:30, ensemble:30, tremDepth:15, tremRate:80, breathDepth:20, air:20, pan:15, reverb:30, vinyl:55, shimmer:0 } },
+  wideAmbient: { name: 'Wide Ambient', values: { cutoff:1800, detune:14, attack:3.5, width:2, vol:55, drone:45, ensemble:60, tremDepth:0, tremRate:150, breathDepth:35, air:16, pan:60, reverb:55, vinyl:8, shimmer:25 } },
 };
 
 function loadCustomPresets() { try { return JSON.parse(localStorage.getItem('dwellCustomPresets') || '{}'); } catch (e) { return {}; } }
