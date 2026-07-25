@@ -30,6 +30,7 @@
     --radius-md: 14px;
     --radius-sm: 10px;
     --ease: cubic-bezier(0.16,1,0.3,1);
+    --audio-level: 0;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   button { font-family: inherit; -webkit-user-select: none; user-select: none; touch-action: manipulation; cursor: pointer; }
@@ -41,6 +42,10 @@
   body { background: radial-gradient(120% 90% at 15% 0%, var(--bg-1) 0%, var(--bg-0) 55%); }
 
   .app-shell { height: 100dvh; display: flex; overflow: hidden; }
+  .app-shell.boot-in { opacity: 0; filter: blur(6px); transform: scale(0.99); }
+  .app-shell.boot-ready { opacity: 1; filter: blur(0); transform: scale(1); transition: opacity .6s var(--ease), filter .6s var(--ease), transform .6s var(--ease); }
+  .reduced-motion .app-shell.boot-in { opacity: 0; filter: none; transform: none; }
+  .reduced-motion .app-shell.boot-ready { transition: opacity .3s linear; filter: none; transform: none; }
   .app { position: relative; flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
 
   .master-fader {
@@ -52,6 +57,7 @@
   .fader-label { font-size: 9px; font-weight: 700; letter-spacing: .06em; color: var(--text-muted); text-transform: uppercase; }
   .fader-track { position: relative; flex: 1 1 auto; width: 8px; border-radius: 4px; background: var(--surface-strong); border: 1px solid var(--border); touch-action: none; overflow: visible; }
   .fader-meter { position: absolute; left: 1px; right: 1px; bottom: 1px; border-radius: 3px; background: linear-gradient(0deg, rgba(249,115,22,0.25) 0%, rgba(249,115,22,0.55) 100%); height: 0%; pointer-events: none; }
+  .fader-peak { position: absolute; left: 1px; right: 1px; height: 2px; bottom: 0%; border-radius: 1px; background: var(--accent); box-shadow: 0 0 4px var(--accent-glow); pointer-events: none; opacity: 0.85; }
   .fader-cap {
     position: absolute; left: 50%; bottom: 0%; width: 34px; height: 18px; border-radius: 6px;
     background: linear-gradient(180deg, #3c3c44 0%, #222228 52%, #1a1a20 100%);
@@ -69,12 +75,16 @@
     50% { box-shadow: 0 0 10px 2px var(--accent-glow); }
   }
   .reduced-motion .fader-cap::before { animation: none; }
+  .audio-live .fader-cap::before {
+    animation: none;
+    box-shadow: 0 0 calc(4px + var(--audio-level, 0) * 16px) calc(1px + var(--audio-level, 0) * 3px) var(--accent-glow);
+  }
   .fader-value { font-size: 11px; font-weight: 700; color: var(--text); }
 
   .bg-ambient { position: fixed; inset: 0; overflow: hidden; z-index: 0; pointer-events: none; }
-  .blob { position: absolute; border-radius: 50%; filter: blur(60px); opacity: 0.09; background: var(--accent); }
-  .blob-1 { width: 360px; height: 360px; top: -80px; left: -60px; animation: float1 28s ease-in-out infinite; }
-  .blob-2 { width: 280px; height: 280px; bottom: -60px; right: -40px; background: #6366F1; opacity: 0.07; animation: float2 34s ease-in-out infinite; }
+  .blob { position: absolute; border-radius: 50%; filter: blur(60px); opacity: calc(var(--blob-base, 0.09) + var(--audio-level, 0) * 0.09); background: var(--accent); transition: opacity .15s linear; }
+  .blob-1 { --blob-base: 0.09; width: 360px; height: 360px; top: -80px; left: -60px; animation: float1 28s ease-in-out infinite; }
+  .blob-2 { --blob-base: 0.07; width: 280px; height: 280px; bottom: -60px; right: -40px; background: #6366F1; animation: float2 34s ease-in-out infinite; }
   @keyframes float1 { 0%,100% { transform: translate(0,0); } 50% { transform: translate(40px, 30px); } }
   @keyframes float2 { 0%,100% { transform: translate(0,0); } 50% { transform: translate(-30px, -40px); } }
   .reduced-motion .blob { animation: none; }
@@ -83,9 +93,9 @@
   .reduced-motion .glow-anchor { transition: none; }
   .glow-anchor .blob-inner {
     position: absolute; width: 220px; height: 220px; margin-left: -110px; margin-top: -110px;
-    border-radius: 50%; filter: blur(55px); background: var(--accent); opacity: 0; transition: opacity .4s var(--ease);
+    border-radius: 50%; filter: blur(55px); background: var(--accent); opacity: 0; transition: opacity .15s linear;
   }
-  .glow-anchor.show .blob-inner { opacity: 0.26; }
+  .glow-anchor.show .blob-inner { opacity: calc(0.15 + var(--audio-level, 0) * 0.28); transition: opacity .4s var(--ease); }
 
   .topbar { position: relative; display: flex; justify-content: center; padding: calc(26px + env(safe-area-inset-top)) 18px 8px; z-index: 1; flex: 0 0 auto; }
   .brand-block { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 8px; }
@@ -108,6 +118,8 @@
   .preset-chip.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
   .preset-chip.add { color: var(--text-muted); border-style: dashed; }
   .preset-chip.reset { color: var(--text-muted); }
+  .chip-glyph { flex: 0 0 auto; display: block; opacity: 0.55; transition: opacity .2s var(--ease); }
+  .preset-chip.active .chip-glyph { opacity: 0.95; }
   .preset-input-row { display: flex; gap: 6px; align-items: center; flex: 0 0 auto; }
   .preset-input-row input { height: 38px; border-radius: 999px; border: 1px solid var(--accent); background: var(--surface-strong); color: var(--text); padding: 0 14px; font-size: 13.5px; width: 140px; }
   .preset-input-row button { height: 38px; width: 38px; border-radius: 50%; border: 1px solid var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 700; }
@@ -126,6 +138,9 @@
   .key-pill.sharp { color: var(--text-muted); }
   .key-pill:active { transform: scale(0.94); }
   .key-pill.active { background: var(--accent); border-color: var(--accent); color: #1a0f04; }
+  .key-pill.settle { animation: pillSettle .3s var(--ease); }
+  @keyframes pillSettle { 0% { transform: scale(0.9); } 55% { transform: scale(1.06); } 100% { transform: scale(1); } }
+  .reduced-motion .key-pill.settle { animation: none; }
 
   .mode-toggle { display: inline-flex; align-self: flex-start; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 3px; gap: 2px; }
   .mode-btn { height: 36px; padding: 0 18px; border-radius: 9px; border: none; background: transparent; color: var(--text-muted); font-weight: 600; font-size: 13.5px; transition: background .18s var(--ease), color .18s var(--ease), height .25s var(--ease); }
@@ -139,6 +154,9 @@
     transition: background .2s var(--ease), border-color .2s var(--ease), box-shadow .2s var(--ease), transform .12s var(--ease), min-height .25s var(--ease);
   }
   .chord-pad:active { transform: scale(0.96); }
+  .chord-pad.settle { animation: padSettle .34s var(--ease); }
+  @keyframes padSettle { 0% { transform: scale(0.94); } 55% { transform: scale(1.035); } 100% { transform: scale(1); } }
+  .reduced-motion .chord-pad.settle { animation: none; }
   .chord-pad .roman { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; transition: font-size .25s var(--ease); }
   .chord-pad .note-name { font-size: 12px; color: var(--text-muted); font-weight: 500; }
 
@@ -353,7 +371,7 @@
     </filter>
   </defs>
 </svg>
-<div class="app-shell">
+<div class="app-shell boot-in" id="appShell">
 <div class="app">
   <div class="bg-ambient" aria-hidden="true">
     <div class="blob blob-1"></div><div class="blob blob-2"></div>
@@ -473,6 +491,7 @@
   <div class="fader-label">MASTER</div>
   <div class="fader-track" id="faderTrack" tabindex="0" role="slider" aria-label="Master volume" aria-valuemin="0" aria-valuemax="100" aria-valuenow="60">
     <div class="fader-meter" id="faderMeter"></div>
+    <div class="fader-peak" id="faderPeak"></div>
     <div class="fader-cap" id="faderCap"></div>
   </div>
   <div class="fader-value" id="faderValue">60%</div>
@@ -574,8 +593,8 @@ function createOctaveUpShifter(ctx, grainSize = 0.1) {
   const output = ctx.createGain();
   const voices = [0, grainSize / 2].map(phaseOffset => {
     const delay = ctx.createDelay(grainSize * 1.2);
-    delay.delayTime.value = grainSize;
-    const rampSrc = ctx.createBufferSource();
+    delay.delayTime.value = 0; // rampSrc supplies the full 0..grainSize range itself — an audio-rate
+    const rampSrc = ctx.createBufferSource(); // connection ADDS to this base value, so it must stay 0
     rampSrc.buffer = rampBuffer; rampSrc.loop = true;
     rampSrc.connect(delay.delayTime);
 
@@ -993,7 +1012,8 @@ function resizeRtaCanvas() {
 window.addEventListener('resize', resizeRtaCanvas);
 
 let faderDisplayLevel = 0;
-function updateFaderMeter() {
+let faderPeakLevel = 0, faderPeakHoldUntil = 0;
+function updateFaderMeter(ts) {
   analyser.getByteTimeDomainData(timeData);
   let sumSquares = 0;
   for (let i = 0; i < timeData.length; i++) { const v = (timeData[i] - 128) / 128; sumSquares += v * v; }
@@ -1001,6 +1021,13 @@ function updateFaderMeter() {
   const target = clamp(rms * 2.4, 0, 1);
   faderDisplayLevel = target > faderDisplayLevel ? target : Math.max(target, faderDisplayLevel - 0.04);
   faderMeterEl.style.height = `${faderDisplayLevel * 100}%`;
+
+  // peak-hold: instant attack, ~800ms hold, then a slow console-style decay
+  if (faderDisplayLevel >= faderPeakLevel) { faderPeakLevel = faderDisplayLevel; faderPeakHoldUntil = ts + 800; }
+  else if (ts > faderPeakHoldUntil) { faderPeakLevel = Math.max(faderDisplayLevel, faderPeakLevel - 0.025); }
+  faderPeakEl.style.bottom = `${faderPeakLevel * 100}%`;
+
+  document.documentElement.style.setProperty('--audio-level', faderDisplayLevel.toFixed(3));
 }
 
 function drawRtaGrid(w, h) {
@@ -1037,8 +1064,16 @@ function drawSpectrumFrame(ts) {
   drawEnsembleFrame(dt);
   if (!analyser) return;
   const idle = activeChordIdx === null && !droneVoice && currentVoices.length === 0;
-  if (idle && faderDisplayLevel < 0.005) return;
-  updateFaderMeter();
+  document.documentElement.classList.toggle('audio-live', !idle);
+  if (idle && faderDisplayLevel < 0.005) {
+    if (faderPeakLevel > 0.001) {
+      faderPeakLevel = Math.max(0, faderPeakLevel - 0.02);
+      faderPeakEl.style.bottom = `${faderPeakLevel * 100}%`;
+    }
+    document.documentElement.style.setProperty('--audio-level', '0');
+    return;
+  }
+  updateFaderMeter(ts);
   const rect = rtaCanvas.getBoundingClientRect();
   if (rect.width === 0) return;
   analyser.getByteFrequencyData(freqData);
@@ -1126,6 +1161,7 @@ positionRtaBand();
 const faderTrack = document.getElementById('faderTrack');
 const faderCap = document.getElementById('faderCap');
 const faderMeterEl = document.getElementById('faderMeter');
+const faderPeakEl = document.getElementById('faderPeak');
 const faderValueEl = document.getElementById('faderValue');
 let volValue = 60;
 
@@ -1535,6 +1571,9 @@ function selectKey(i) {
   [...container.children].forEach(c => { c.classList.remove('active'); c.setAttribute('aria-pressed', 'false'); });
   btn.classList.add('active');
   btn.setAttribute('aria-pressed', 'true');
+  btn.classList.remove('settle');
+  void btn.offsetWidth;
+  btn.classList.add('settle');
   glowKeyTarget = btn;
   positionGlow('glowKey', btn);
   updateChordLabels();
@@ -1607,6 +1646,9 @@ function triggerChord(degreeIdx) {
   activeChordIdx = degreeIdx;
   const pads = document.querySelectorAll('#chords .chord-pad');
   pads.forEach((c, i) => { c.classList.toggle('active', i === degreeIdx); c.setAttribute('aria-pressed', String(i === degreeIdx)); });
+  pads[degreeIdx].classList.remove('settle');
+  void pads[degreeIdx].offsetWidth;
+  pads[degreeIdx].classList.add('settle');
 
   const width = controls.width.get();
   const { scale } = getActiveScale();
@@ -1800,6 +1842,11 @@ if (shortcutPresetKey && BUILTIN_PRESETS[shortcutPresetKey]) {
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').catch(() => {}); });
 }
+
+/* ---------- one-time boot-in reveal ---------- */
+requestAnimationFrame(() => requestAnimationFrame(() => {
+  document.getElementById('appShell').classList.add('boot-ready');
+}));
 
 /* ---------- install-as-PWA prompt ---------- */
 
