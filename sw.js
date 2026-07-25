@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dwell-cache-v2';
+const CACHE_NAME = 'dwell-cache-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -47,14 +47,12 @@ self.addEventListener('fetch', (event) => {
   // static assets (icons): cache-first is fine, they rarely change
   event.respondWith(
     caches.match(event.request).then((cached) => {
-      const fetchPromise = fetch(event.request)
-        .then((res) => {
-          const clone = res.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-          return res;
-        })
-        .catch(() => cached);
-      return cached || fetchPromise;
+      if (cached) return cached;
+      return fetch(event.request).then((res) => {
+        const clone = res.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        return res;
+      });
     })
   );
 });
