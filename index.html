@@ -1528,6 +1528,24 @@ window.addEventListener('resize', () => {
 
 /* ---------- keys, chords, mode, now-playing ---------- */
 
+function selectKey(i) {
+  const container = document.getElementById('keys');
+  const btn = container.children[i];
+  rootMidi = 60 + i;
+  [...container.children].forEach(c => { c.classList.remove('active'); c.setAttribute('aria-pressed', 'false'); });
+  btn.classList.add('active');
+  btn.setAttribute('aria-pressed', 'true');
+  glowKeyTarget = btn;
+  positionGlow('glowKey', btn);
+  updateChordLabels();
+  updateNowPlaying();
+  if (activeChordIdx !== null) triggerChord(activeChordIdx);
+}
+function stepKey(delta) {
+  const idx = ((rootMidi - 60) % 12 + 12) % 12;
+  selectKey((idx + delta + 12) % 12);
+}
+
 function buildKeys() {
   const container = document.getElementById('keys');
   NOTE_NAMES.forEach((name, i) => {
@@ -1535,17 +1553,7 @@ function buildKeys() {
     btn.className = 'key-pill' + (name.includes('#') ? ' sharp' : '');
     btn.textContent = name;
     btn.setAttribute('aria-pressed', 'false');
-    btn.onclick = () => {
-      rootMidi = 60 + i;
-      [...container.children].forEach(c => { c.classList.remove('active'); c.setAttribute('aria-pressed', 'false'); });
-      btn.classList.add('active');
-      btn.setAttribute('aria-pressed', 'true');
-      glowKeyTarget = btn;
-      positionGlow('glowKey', btn);
-      updateChordLabels();
-      updateNowPlaying();
-      if (activeChordIdx !== null) triggerChord(activeChordIdx);
-    };
+    btn.onclick = () => selectKey(i);
     if (i === 0) { btn.classList.add('active'); btn.setAttribute('aria-pressed', 'true'); glowKeyTarget = btn; }
     container.appendChild(btn);
   });
@@ -1636,6 +1644,20 @@ document.getElementById('stop').onclick = () => {
   glowChordTarget = null;
   positionGlow('glowChord', null);
 };
+
+/* ---------- foot pedal (Bluetooth HID pedal mapped to arrow keys) ---------- */
+/* Up/Down: step key. Right: play the I chord. Left: stop.
+   Remap by editing the four cases below if your pedal's buttons differ. */
+
+document.addEventListener('keydown', (e) => {
+  if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+  if (e.target && e.target.getAttribute && e.target.getAttribute('role') === 'slider') return; // let focused knob/fader handle its own arrows
+  e.preventDefault();
+  if (e.key === 'ArrowUp') stepKey(1);
+  else if (e.key === 'ArrowDown') stepKey(-1);
+  else if (e.key === 'ArrowRight') triggerChord(0);
+  else if (e.key === 'ArrowLeft') document.getElementById('stop').click();
+});
 
 document.querySelectorAll('.mode-btn').forEach(btn => {
   btn.onclick = () => {
