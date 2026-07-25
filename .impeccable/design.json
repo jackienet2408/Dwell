@@ -1,0 +1,107 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-25T00:00:00.000Z",
+  "title": "Design System: Dwell",
+  "extensions": {
+    "colorMeta": {
+      "accent": { "role": "primary", "displayName": "Ember Orange", "canonical": "#F97316", "tonalRamp": ["#2a1503", "#4a2506", "#7a3d0a", "#b8570f", "#F97316", "#fb9a4f", "#fdc08c", "#fee4cc"] },
+      "danger": { "role": "secondary", "displayName": "Alert Red", "canonical": "#EF4444", "tonalRamp": ["#2a0808", "#4a0e0e", "#7a1717", "#b82626", "#EF4444", "#f37a7a", "#f8adad", "#fcdcdc"] },
+      "bg-void": { "role": "neutral", "displayName": "Void Black", "canonical": "#07070d", "tonalRamp": ["#07070d", "#0c0c16", "#101022", "#181830", "#2a2a48", "#4a4a70", "#7a7a9c", "#c0c0d4"] },
+      "text": { "role": "neutral", "displayName": "Signal White", "canonical": "#F5F5F7", "tonalRamp": ["#1a1a1c", "#3a3a3e", "#5a5a60", "#7a7a82", "#9597a6", "#c0c0c8", "#e0e0e4", "#F5F5F7"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Chord pad Roman numeral only — the single largest glanceable value on screen." },
+      "title": { "displayName": "Title", "purpose": "Top bar now-playing key + chord readout." },
+      "body": { "displayName": "Body", "purpose": "Preset chips, mode toggle, hints." },
+      "label": { "displayName": "Label", "purpose": "Uppercase captions under every control — fader, knobs, brand, note names." }
+    },
+    "shadows": [
+      { "name": "ember-glow", "value": "0 0 22px rgba(249,115,22,0.38)", "purpose": "The sole 'this is active' depth cue — active chord pad, fader cap, knob ring, RTA handle." },
+      { "name": "hardware-cap", "value": "0 2px 5px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.12)", "purpose": "Deliberate skeuomorphic exception for fader cap and RTA ball only." },
+      { "name": "panel-lift", "value": "0 8px 24px rgba(0,0,0,0.35)", "purpose": "Install card and modals, to separate from the stage." }
+    ],
+    "motion": [
+      { "name": "ease-standard", "value": "cubic-bezier(0.16,1,0.3,1)", "purpose": "Default easing for nearly every transition in the system." },
+      { "name": "press-scale", "value": "transform: scale(0.94-0.96) on :active, 0.12s", "purpose": "Immediate tactile press feedback on pads and buttons." }
+    ],
+    "breakpoints": []
+  },
+  "components": [
+    {
+      "name": "Chord Pad (active)",
+      "kind": "custom",
+      "refersTo": "chord-pad-active",
+      "description": "The primary key/chord selector — shows Roman numeral + note name, glows when active.",
+      "html": "<button class=\"ds-chord-pad ds-chord-pad--active\"><span class=\"ds-chord-roman\">IV</span><span class=\"ds-chord-note\">Bb</span></button>",
+      "css": ".ds-chord-pad { position: relative; overflow: hidden; min-height: 88px; width: 100%; border-radius: 14px; background: rgba(255,255,255,0.045); border: 1px solid rgba(255,255,255,0.09); color: #F5F5F7; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; transition: background .2s cubic-bezier(0.16,1,0.3,1), border-color .2s cubic-bezier(0.16,1,0.3,1), box-shadow .2s cubic-bezier(0.16,1,0.3,1), transform .12s cubic-bezier(0.16,1,0.3,1); } .ds-chord-pad:active { transform: scale(0.96); } .ds-chord-roman { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; } .ds-chord-note { font-size: 12px; color: #9597a6; font-weight: 500; } .ds-chord-pad--active { background: rgba(249,115,22,0.16); border-color: #F97316; box-shadow: 0 0 0 1px #F97316, 0 0 22px rgba(249,115,22,0.38); } .ds-chord-pad--active .ds-chord-note { color: rgba(245,245,247,0.75); }"
+    },
+    {
+      "name": "Key Pill",
+      "kind": "button",
+      "refersTo": "key-pill",
+      "description": "Root-key selector pill in the horizontal key scroll strip.",
+      "html": "<button class=\"ds-key-pill\">C#</button>",
+      "css": ".ds-key-pill { min-width: 46px; height: 46px; padding: 0 8px; border-radius: 13px; background: rgba(255,255,255,0.045); border: 1px solid rgba(255,255,255,0.09); color: #F5F5F7; font-weight: 600; font-size: 15px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; transition: background .18s cubic-bezier(0.16,1,0.3,1), border-color .18s cubic-bezier(0.16,1,0.3,1), transform .12s cubic-bezier(0.16,1,0.3,1); } .ds-key-pill:active { transform: scale(0.94); } .ds-key-pill--active { background: #F97316; border-color: #F97316; color: #1a0f04; }"
+    },
+    {
+      "name": "Preset Chip",
+      "kind": "chip",
+      "refersTo": "preset-chip",
+      "description": "Pill-shaped preset selector in the horizontally scrolling presets strip.",
+      "html": "<button class=\"ds-preset-chip ds-preset-chip--active\">Warm &amp; Soft</button>",
+      "css": ".ds-preset-chip { height: 38px; padding: 0 16px; border-radius: 999px; background: rgba(255,255,255,0.045); border: 1px solid rgba(255,255,255,0.09); color: #F5F5F7; font-size: 13.5px; font-weight: 600; font-family: -apple-system, BlinkMacSystemFont, sans-serif; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; transition: background .2s cubic-bezier(0.16,1,0.3,1), border-color .2s cubic-bezier(0.16,1,0.3,1), color .2s cubic-bezier(0.16,1,0.3,1); } .ds-preset-chip--active { background: rgba(249,115,22,0.16); border-color: #F97316; color: #F97316; }"
+    },
+    {
+      "name": "Stop Button (playing)",
+      "kind": "button",
+      "refersTo": "stop-btn-playing",
+      "description": "Square transport button; only visually lit while audio is actually sounding.",
+      "html": "<button class=\"ds-stop-btn ds-stop-btn--playing\" aria-label=\"Stop\">■</button>",
+      "css": ".ds-stop-btn { width: 68px; aspect-ratio: 1; border-radius: 10px; border: 1px solid rgba(255,255,255,0.09); background: rgba(255,255,255,0.045); color: #9597a6; display: flex; align-items: center; justify-content: center; font-size: 18px; transition: background .25s cubic-bezier(0.16,1,0.3,1), border-color .25s cubic-bezier(0.16,1,0.3,1), color .25s cubic-bezier(0.16,1,0.3,1), box-shadow .25s cubic-bezier(0.16,1,0.3,1); } .ds-stop-btn:active { transform: scale(0.94); } .ds-stop-btn--playing { background: rgba(239,68,68,0.13); border-color: #EF4444; color: #EF4444; box-shadow: 0 0 20px rgba(239,68,68,0.28); }"
+    },
+    {
+      "name": "Mode Toggle",
+      "kind": "nav",
+      "refersTo": "mode-toggle",
+      "description": "Segmented Major/Minor mode switch.",
+      "html": "<div class=\"ds-mode-toggle\"><button class=\"ds-mode-btn ds-mode-btn--active\">Major</button><button class=\"ds-mode-btn\">Minor</button></div>",
+      "css": ".ds-mode-toggle { display: inline-flex; background: rgba(255,255,255,0.045); border: 1px solid rgba(255,255,255,0.09); border-radius: 12px; padding: 3px; gap: 2px; } .ds-mode-btn { height: 36px; padding: 0 18px; border-radius: 9px; border: none; background: transparent; color: #9597a6; font-weight: 600; font-size: 13.5px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; transition: background .18s cubic-bezier(0.16,1,0.3,1), color .18s cubic-bezier(0.16,1,0.3,1); } .ds-mode-btn--active { background: rgba(249,115,22,0.16); color: #F97316; }"
+    },
+    {
+      "name": "Knob",
+      "kind": "custom",
+      "refersTo": "knob",
+      "description": "The signature control: a circular touch dial with a value-scaled glow halo.",
+      "html": "<div class=\"ds-knob-cell\"><div class=\"ds-knob\" style=\"--val: 0.65;\"><svg class=\"ds-knob-svg\" viewBox=\"0 0 68 68\"><circle cx=\"34\" cy=\"34\" r=\"30\" fill=\"none\" stroke=\"rgba(255,255,255,0.09)\" stroke-width=\"4\"/><circle cx=\"34\" cy=\"34\" r=\"30\" fill=\"none\" stroke=\"#F97316\" stroke-width=\"4\" stroke-linecap=\"round\" stroke-dasharray=\"141 188\" transform=\"rotate(-210 34 34)\"/></svg></div><span class=\"ds-knob-label\">Cutoff</span><span class=\"ds-knob-value\">65%</span></div>",
+      "css": ".ds-knob-cell { display: flex; flex-direction: column; align-items: center; gap: 3px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; } .ds-knob { position: relative; width: 68px; height: 68px; touch-action: none; } .ds-knob::before { content: ''; position: absolute; inset: -13px; border-radius: 50%; z-index: -1; background: radial-gradient(circle, rgba(249,115,22,0.38) 0%, transparent 72%); opacity: calc(var(--val, 0) * 0.85); filter: blur(1px); } .ds-knob-svg { width: 100%; height: 100%; position: relative; z-index: 1; } .ds-knob-label { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: #9597a6; } .ds-knob-value { font-size: 12px; font-weight: 700; color: #F5F5F7; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Booth at Dusk",
+    "overview": "Dwell reads like the tech booth at the edge of a darkened sanctuary a few minutes before a live set: near-black ambient light, a few frosted-glass panels catching a low glow, and one warm ember-orange signal that tells the operator exactly where the sound is pointed. Everything at rest is quiet and low-contrast; the interface has no urgency until something is actually playing, and then the accent color and its glow become the entire visual vocabulary for \"this is live.\"\n\nThe system is deliberately flat and glassy — translucent surfaces, soft blur, no drop shadows — but it earns that flatness through an instrument-panel logic rather than borrowing a generic template look: the fader cap, the RTA cutoff ball, and the pan/breath indicator dots are the one place skeuomorphic weight and specular highlight are allowed, because those are the parts a hand actually turns or drags. Everything else stays flat so those touch points read as the \"hardware\" against a calm glass chassis.",
+    "keyCharacteristics": [
+      "Near-black void background with a single warm accent — no secondary or tertiary hue competing for attention",
+      "Frosted/blurred glass surfaces at rest; the accent's soft glow — not shadow — is what conveys elevation and \"live\" state",
+      "A handful of touch primitives (fader cap, knob dot, RTA ball) carry deliberate specular/hardware rendering as the sole departure from flat",
+      "Tactile, immediate feedback: pads and buttons scale down on press; nothing waits to confirm a touch landed"
+    ],
+    "rules": [
+      { "name": "The One Ember Rule", "body": "Ember Orange is the only color allowed to signal \"this is active/live.\" If a control isn't currently doing something, it stays neutral glass — no decorative accent color on idle elements.", "section": "colors" },
+      { "name": "The Weight-Over-Size Rule", "body": "Hierarchy is built mostly with font-weight (500 body vs. 700 emphasis) and muted-vs-signal color, not a wide type scale — sizes stay clustered between 9px and 22px across the entire app.", "section": "typography" },
+      { "name": "The Flat-Chassis Rule", "body": "Surfaces are flat glass at rest. Shadow only appears on the small set of elements a hand actually drags or turns (fader cap, knobs, RTA ball) — never on static containers like pads, chips, or panels.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep Ember Orange as the only color that means \"active/live\" — every other surface stays neutral glass.",
+      "Do use glow + opacity, not box-shadow, to show elevation on ordinary panels and pads.",
+      "Do reserve real skeuomorphic shading (gradients, inset highlights, drop shadows) for parts the user physically drags or turns — fader cap, knobs, RTA ball.",
+      "Do give touch feedback via an immediate scale-down transform, not color fade or delay.",
+      "Do keep type hierarchy driven by weight and muted/signal color contrast rather than a wide size scale."
+    ],
+    "donts": [
+      "Don't introduce a second accent hue; red is reserved solely for the Stop-while-playing state.",
+      "Don't add generic glassmorphism flourishes (extra gradient sheens, rainbow blurs, decorative frosted cards) beyond the system's existing surface/border/blur recipe — this should read as a purpose-built instrument panel, not a templated \"AI app\" look.",
+      "Don't put a drop shadow on a static container (pad, chip, panel) that isn't currently active or being touched.",
+      "Don't add hover-only affordances; every interactive state must work with touch-press alone."
+    ]
+  }
+}
