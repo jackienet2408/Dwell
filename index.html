@@ -543,7 +543,7 @@ let filterBreathLfo = null, filterBreathGain = null;
 let tremoloGain = null, tremoloLfo = null, tremoloLfoGain = null;
 let panner = null, panLfo = null, panLfoGain = null;
 let dryGain = null, reverbSendGain = null, reverbWetGain = null, convolver = null;
-let shimmerSendGain = null, shimmerShifter = null;
+let shimmerSendGain = null, shimmerShifter = null, shimmerTone = null;
 let masterGain = null;
 let mediaStreamDest = null;
 let noiseSource = null, noiseFilter = null, noiseGain = null;
@@ -668,12 +668,17 @@ function ensureAudio() {
   dryGain.connect(masterGain);
   reverbWetGain.connect(masterGain);
 
+  // Halo is its own independent send — deliberately NOT routed through the
+  // convolver, so it stays audible (and sonically distinct from the room
+  // reverb) even when the Reverb knob is at 0.
+  shimmerShifter = createOctaveUpShifter(audioCtx);
+  shimmerTone = audioCtx.createBiquadFilter();
+  shimmerTone.type = 'highpass';
+  shimmerTone.frequency.value = 700;
   shimmerSendGain = audioCtx.createGain();
   shimmerSendGain.gain.value = 0;
-  shimmerShifter = createOctaveUpShifter(audioCtx);
-  panner.connect(shimmerSendGain);
-  shimmerSendGain.connect(shimmerShifter.input);
-  shimmerShifter.output.connect(convolver);
+  panner.connect(shimmerShifter.input);
+  shimmerShifter.output.connect(shimmerTone).connect(shimmerSendGain).connect(masterGain);
   mediaStreamDest = audioCtx.createMediaStreamDestination();
   masterGain.connect(mediaStreamDest);
   const bgAudio = document.getElementById('bgAudio');
@@ -716,7 +721,10 @@ function setupNoiseLayer() {
   noiseGain = audioCtx.createGain();
   noiseGain.gain.value = 0;
 
-  noiseSource.connect(noiseFilter).connect(noiseGain).connect(masterFilter);
+  // Air bypasses masterFilter deliberately: it's meant to sit as sheen ABOVE
+  // the tone cutoff, not be shaped by it — routing through masterFilter was
+  // muting most of its bandpassed 2500Hz content whenever cutoff sat below that.
+  noiseSource.connect(noiseFilter).connect(noiseGain).connect(tremoloGain);
   noiseSource.start();
   applyAirLevel(controls.air.get());
 }
@@ -768,10 +776,10 @@ function applyReverbMix(pct) {
 function applyTremoloDepth(pct) { if (audioCtx) tremoloLfoGain.gain.setTargetAtTime((pct / 100) * 0.5, audioCtx.currentTime, 0.05); }
 function applyBreathDepth(pct) { if (audioCtx) filterBreathGain.gain.setTargetAtTime((pct / 100) * 800, audioCtx.currentTime, 0.05); }
 function applyPanDepth(pct) { if (audioCtx) panLfoGain.gain.setTargetAtTime((pct / 100) * 0.9, audioCtx.currentTime, 0.05); }
-function applyShimmerLevel(pct) { if (audioCtx) shimmerSendGain.gain.setTargetAtTime((pct / 100) * 0.7, audioCtx.currentTime, 0.05); }
+function applyShimmerLevel(pct) { if (audioCtx) shimmerSendGain.gain.setTargetAtTime((pct / 100) * 0.3, audioCtx.currentTime, 0.05); }
 function applyAirLevel(pct) {
   if (!audioCtx || activeChordIdx === null) return; // don't ramp audible while stopped; playChord re-applies on next trigger
-  noiseGain.gain.setTargetAtTime((pct / 100) * 0.03, audioCtx.currentTime, 0.05);
+  noiseGain.gain.setTargetAtTime((pct / 100) * 0.045, audioCtx.currentTime, 0.05);
 }
 function applyVinylLevel(pct) {
   if (!audioCtx || activeChordIdx === null) return;
