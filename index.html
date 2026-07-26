@@ -1214,10 +1214,11 @@ function drawRtaGrid(w, h) {
 
 const RTA_COLS = 110;
 const rtaColumns = Array.from({ length: RTA_COLS }, () => ({ topY: null, particles: [] }));
-// Particle spawn rate/cap scales down on low-power devices — an unbounded
-// per-column particle array is the single heaviest cost in this canvas loop.
-const RTA_SPAWN_CHANCE = lowPowerDevice ? 0.22 : 0.55;
-const RTA_MAX_PARTICLES_PER_COL = lowPowerDevice ? 6 : 24;
+// Light sparkle only — the smoothed line carries the visual, particles are
+// just an accent, so counts stay low on every device (lower still on
+// low-power devices to keep the canvas loop cheap).
+const RTA_SPAWN_CHANCE = lowPowerDevice ? 0.05 : 0.12;
+const RTA_MAX_PARTICLES_PER_COL = lowPowerDevice ? 2 : 3;
 
 let lastFrameTs = null;
 function drawSpectrumFrame(ts) {
@@ -1252,6 +1253,8 @@ function drawSpectrumFrame(ts) {
   drawRtaGrid(w, h);
 
   const squareSize = 2.4, radius = 0.9;
+  const points = new Array(RTA_COLS);
+  let anySignal = false;
   for (let c = 0; c < RTA_COLS; c++) {
     const fracL = c / RTA_COLS, fracR = (c + 1) / RTA_COLS;
     const fL = Math.exp(Math.log(RTA_MIN_F) + fracL * (Math.log(RTA_MAX_F) - Math.log(RTA_MIN_F)));
@@ -1265,9 +1268,11 @@ function drawSpectrumFrame(ts) {
     const col = rtaColumns[c];
     const x = (fracL + fracR) / 2 * w;
     const hasSignal = amp >= 0.02;
+    if (hasSignal) anySignal = true;
     const yTarget = hasSignal ? h - amp * h * 0.9 : h + 10;
     if (col.topY === null) col.topY = yTarget;
     col.topY += (yTarget - col.topY) * 0.6;
+    points[c] = { x, y: col.topY, hasSignal };
 
     if (hasSignal && col.particles.length < RTA_MAX_PARTICLES_PER_COL && Math.random() < RTA_SPAWN_CHANCE) {
       col.particles.push({
@@ -1291,10 +1296,24 @@ function drawSpectrumFrame(ts) {
       rtaCtx2d.fillStyle = `rgba(249,115,22,${p.opacity.toFixed(3)})`;
       drawRoundedSquare(rtaCtx2d, x + p.drift, p.y, squareSize, radius);
     });
-    if (hasSignal) {
-      rtaCtx2d.fillStyle = 'rgba(249,115,22,1)';
-      drawRoundedSquare(rtaCtx2d, x, col.topY, squareSize + 0.6, radius);
+  }
+
+  if (anySignal) {
+    // Smoothed line through each column's top-Y via quadratic curves between
+    // consecutive midpoints — one stroked path instead of 110 per-frame fills.
+    rtaCtx2d.beginPath();
+    rtaCtx2d.moveTo(points[0].x, points[0].y);
+    for (let c = 1; c < RTA_COLS; c++) {
+      const prev = points[c - 1], cur = points[c];
+      const midX = (prev.x + cur.x) / 2, midY = (prev.y + cur.y) / 2;
+      rtaCtx2d.quadraticCurveTo(prev.x, prev.y, midX, midY);
     }
+    rtaCtx2d.lineTo(points[RTA_COLS - 1].x, points[RTA_COLS - 1].y);
+    rtaCtx2d.strokeStyle = 'rgba(249,115,22,1)';
+    rtaCtx2d.lineWidth = 2.2;
+    rtaCtx2d.lineJoin = 'round';
+    rtaCtx2d.lineCap = 'round';
+    rtaCtx2d.stroke();
   }
 }
 requestAnimationFrame(drawSpectrumFrame);
