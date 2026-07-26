@@ -61,6 +61,7 @@
     background: rgba(14,14,24,0.6); border-left: 1px solid var(--border); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
     position: relative; z-index: 2;
   }
+  .low-power .master-fader { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(14,14,24,0.86); }
   .fader-label { font-size: 9px; font-weight: 700; letter-spacing: .06em; color: var(--text-muted); text-transform: uppercase; }
   .fader-track { position: relative; flex: 1 1 auto; width: 8px; border-radius: 4px; background: var(--surface-strong); border: 1px solid var(--border); touch-action: none; overflow: visible; }
   .fader-meter { position: absolute; left: 1px; right: 1px; bottom: 1px; border-radius: 3px; background: linear-gradient(0deg, rgba(249,115,22,0.25) 0%, rgba(249,115,22,0.55) 100%); height: 0%; pointer-events: none; }
@@ -106,6 +107,7 @@
   @keyframes float1 { 0%,100% { transform: translate(0,0); } 50% { transform: translate(40px, 30px); } }
   @keyframes float2 { 0%,100% { transform: translate(0,0); } 50% { transform: translate(-30px, -40px); } }
   .reduced-motion .blob { animation: none; }
+  .low-power .blob { filter: blur(28px); animation: none; }
 
   .glow-anchor { position: fixed; top: 0; left: 0; width: 0; height: 0; z-index: 0; pointer-events: none; transition: transform .5s var(--ease); }
   .reduced-motion .glow-anchor { transition: none; }
@@ -114,6 +116,7 @@
     border-radius: 50%; filter: blur(55px); background: var(--accent); opacity: 0; transition: opacity .15s linear;
   }
   .glow-anchor.show .blob-inner { opacity: calc(0.15 + var(--audio-level, 0) * 0.28); transition: opacity .4s var(--ease); }
+  .low-power .glow-anchor .blob-inner { filter: blur(24px); }
 
   .topbar { position: relative; display: flex; justify-content: center; padding: calc(26px + env(safe-area-inset-top)) 18px 8px; z-index: 1; flex: 0 0 auto; }
   .brand-block { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 8px; }
@@ -233,6 +236,7 @@
      the tray sits collapsed (its default/most common state), this was the
      bottom-most visible element and nothing reserved that space at all. */
   .studio-tray { position: relative; z-index: 1; flex: 0 0 auto; background: rgba(14,14,24,0.92); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 1px solid var(--border); }
+  .low-power .studio-tray { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(14,14,24,0.97); }
   /* Only needed while collapsed — once open, .page-dots already reserves this same space, so adding it here too would double it. */
   .studio-tray:not(.open) { padding-bottom: env(safe-area-inset-bottom); }
   .tray-handle { all: unset; display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 9px 0 10px; width: 100%; }
@@ -372,6 +376,7 @@
     box-shadow: 0 8px 24px rgba(0,0,0,0.35);
     display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
   }
+  .low-power .install-card-inner { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(20,20,30,0.92); }
   .install-card-close {
     all: unset; position: absolute; top: 6px; right: 9px; color: var(--text-muted); font-size: 14px; line-height: 1;
     cursor: pointer; padding: 4px;
@@ -632,6 +637,10 @@ const controls = {};
 
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 if (reducedMotion) document.documentElement.classList.add('reduced-motion');
+// Older/weaker devices (e.g. iPad 5th gen's dual-core A9) choke on backdrop-filter
+// blur and per-frame blur recompositing that newer devices shrug off.
+const lowPowerDevice = (navigator.hardwareConcurrency || 4) <= 2 || (navigator.deviceMemory || 4) <= 2;
+if (lowPowerDevice) document.documentElement.classList.add('low-power');
 function clamp(v, min, max) { return Math.min(max, Math.max(min, v)); }
 
 /* ---------- in-app dialogs ----------
@@ -1156,6 +1165,7 @@ window.addEventListener('resize', resizeRtaCanvas);
 
 let faderDisplayLevel = 0;
 let faderPeakLevel = 0, faderPeakHoldUntil = 0;
+let lastAudioLevelStep = -1;
 function updateFaderMeter(ts) {
   analyser.getByteTimeDomainData(timeData);
   let sumSquares = 0;
@@ -1170,7 +1180,14 @@ function updateFaderMeter(ts) {
   else if (ts > faderPeakHoldUntil) { faderPeakLevel = Math.max(faderDisplayLevel, faderPeakLevel - 0.025); }
   faderPeakEl.style.bottom = `${faderPeakLevel * 100}%`;
 
-  document.documentElement.style.setProperty('--audio-level', faderDisplayLevel.toFixed(3));
+  // --audio-level drives blur(60px)-filtered glow opacity — writing a fresh
+  // value every frame forces that blur to recomposite every frame too, so
+  // quantize to steps and only touch the DOM when the step actually changes.
+  const step = Math.round(faderDisplayLevel * 40);
+  if (step !== lastAudioLevelStep) {
+    lastAudioLevelStep = step;
+    document.documentElement.style.setProperty('--audio-level', (step / 40).toFixed(3));
+  }
 }
 
 function drawRtaGrid(w, h) {
@@ -1197,6 +1214,10 @@ function drawRtaGrid(w, h) {
 
 const RTA_COLS = 110;
 const rtaColumns = Array.from({ length: RTA_COLS }, () => ({ topY: null, particles: [] }));
+// Particle spawn rate/cap scales down on low-power devices — an unbounded
+// per-column particle array is the single heaviest cost in this canvas loop.
+const RTA_SPAWN_CHANCE = lowPowerDevice ? 0.22 : 0.55;
+const RTA_MAX_PARTICLES_PER_COL = lowPowerDevice ? 6 : 24;
 
 let lastFrameTs = null;
 function drawSpectrumFrame(ts) {
@@ -1204,16 +1225,19 @@ function drawSpectrumFrame(ts) {
   if (document.hidden) return;
   const dt = lastFrameTs === null ? 1 / 60 : Math.min((ts - lastFrameTs) / 1000, 0.1);
   lastFrameTs = ts;
-  drawEnsembleFrame(dt);
-  if (!analyser) return;
   const idle = activeChordIdx === null && !droneVoice && currentVoices.length === 0;
+  if (!idle) drawEnsembleFrame(dt);
+  if (!analyser) return;
   document.documentElement.classList.toggle('audio-live', !idle);
   if (idle && faderDisplayLevel < 0.005) {
     if (faderPeakLevel > 0.001) {
       faderPeakLevel = Math.max(0, faderPeakLevel - 0.02);
       faderPeakEl.style.bottom = `${faderPeakLevel * 100}%`;
     }
-    document.documentElement.style.setProperty('--audio-level', '0');
+    if (lastAudioLevelStep !== 0) {
+      document.documentElement.style.setProperty('--audio-level', '0');
+      lastAudioLevelStep = 0;
+    }
     return;
   }
   updateFaderMeter(ts);
@@ -1245,7 +1269,7 @@ function drawSpectrumFrame(ts) {
     if (col.topY === null) col.topY = yTarget;
     col.topY += (yTarget - col.topY) * 0.6;
 
-    if (hasSignal && Math.random() < 0.55) {
+    if (hasSignal && col.particles.length < RTA_MAX_PARTICLES_PER_COL && Math.random() < RTA_SPAWN_CHANCE) {
       col.particles.push({
         y: col.topY, drift: 0,
         vx: (Math.random() - 0.5) * 0.3,
