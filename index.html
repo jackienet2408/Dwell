@@ -1160,6 +1160,9 @@ function resizeRtaCanvas() {
   rtaCanvas.width = rect.width * dpr;
   rtaCanvas.height = rect.height * dpr;
   rtaCtx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
+  // RTA is disabled on this device — draw the grid once and leave it;
+  // drawSpectrumFrame never touches this canvas again.
+  if (RTA_DISABLED) drawRtaGrid(rect.width, rect.height);
 }
 window.addEventListener('resize', resizeRtaCanvas);
 
@@ -1219,6 +1222,11 @@ const rtaColumns = Array.from({ length: RTA_COLS }, () => ({ topY: null, particl
 // low-power devices to keep the canvas loop cheap).
 const RTA_SPAWN_CHANCE = lowPowerDevice ? 0.05 : 0.12;
 const RTA_MAX_PARTICLES_PER_COL = lowPowerDevice ? 2 : 3;
+// Even the lightened line+sparkle version still redraws a canvas every
+// frame — on genuinely weak devices (e.g. iPad 5th gen) that alone is
+// enough to stay choppy, so skip the whole live RTA draw there and leave
+// a static grid. The warmth cutoff drag handle is separate DOM, unaffected.
+const RTA_DISABLED = lowPowerDevice;
 
 let lastFrameTs = null;
 function drawSpectrumFrame(ts) {
@@ -1242,6 +1250,7 @@ function drawSpectrumFrame(ts) {
     return;
   }
   updateFaderMeter(ts);
+  if (RTA_DISABLED) return;
   const rect = rtaCanvas.getBoundingClientRect();
   if (rect.width === 0) return;
   analyser.getByteFrequencyData(freqData);
